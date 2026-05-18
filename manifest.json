@@ -1,11 +1,10 @@
 {
 	"id": "days-left",
 	"name": "Days Left",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "1.12.7",
 	"description": "A countdown timer for tracking days left to future events or days passed since past dates.",
 	"author": "creesee",
-	"authorUrl": "https://github.com/creesee",
 	"fundingUrl": "https://buycoffee.to/creesee", 
 	"isDesktopOnly": false
 }

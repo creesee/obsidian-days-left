@@ -1,59 +1,71 @@
-import { Plugin, PluginSettingTab, App, Setting, moment, Editor, MarkdownView, Notice, Modal, TextComponent, MarkdownRenderChild } from 'obsidian';
+import { Plugin, PluginSettingTab, App, Setting, moment, Editor, MarkdownView, Notice, Modal, MarkdownRenderChild, TextComponent, ToggleComponent } from 'obsidian';
 import { EditorView, WidgetType, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { RangeSetBuilder, StateEffect } from "@codemirror/state";
 
 // ==========================================================
-// 1. SŁOWNIKI TŁUMACZEŃ (i18n)
+// 1. SŁOWNIKI TŁUMACZEŃ (i18n) - DO NOTATEK
 // ==========================================================
 const i18n: Record<string, any> = {
-    "en": { today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday", past: (days: number) => `${days} ${days === 1 ? "day" : "days"} ago`, future: (days: number) => `${days} ${days === 1 ? "day" : "days"}`, missingDate: "Provide a target date (e.g. ", missingDateClose: ")", openNote: "Open note (Ctrl+click for new tab)", gotIt: "Got it", defaultEvent: "Upcoming event", notifHeader: "Notification!" },
-    "pl": { today: "Dzisiaj", tomorrow: "Jutro", yesterday: "Wczoraj", past: (days: number) => `${days} ${days === 1 ? "dzień" : "dni"} temu`, future: (days: number) => `${days} ${days === 1 ? "dzień" : "dni"}`, missingDate: "Podaj datę docelową (np. ", missingDateClose: ")", openNote: "Otwórz notatkę (Ctrl+click dla nowej karty)", gotIt: "Zrozumiałem", defaultEvent: "Wydarzenie", notifHeader: "Powiadomienie!" },
-    "es": { today: "Hoy", tomorrow: "Mañana", yesterday: "Ayer", past: (days: number) => `Hace ${days} ${days === 1 ? "día" : "días"}`, future: (days: number) => `${days} ${days === 1 ? "día" : "días"}`, missingDate: "Indica una fecha (ej. ", missingDateClose: ")", openNote: "Abrir nota (Ctrl+clic nueva pestaña)", gotIt: "Entendido", defaultEvent: "Próximo evento", notifHeader: "¡Notificación!" },
-    "fr": { today: "Aujourd'hui", tomorrow: "Demain", yesterday: "Hier", past: (days: number) => `Il y a ${days} ${days <= 1 ? "jour" : "jours"}`, future: (days: number) => `${days} ${days <= 1 ? "jour" : "jours"}`, missingDate: "Indiquez la date (ex. ", missingDateClose: ")", openNote: "Ouvrir la note (Ctrl+clic nouvel onglet)", gotIt: "Compris", defaultEvent: "Événement à venir", notifHeader: "Notification !" },
-    "de": { today: "Heute", tomorrow: "Morgen", yesterday: "Gestern", past: (days: number) => `Vor ${days} ${days === 1 ? "Tag" : "Tagen"}`, future: (days: number) => `${days} ${days === 1 ? "Tag" : "Tage"}`, missingDate: "Datum angeben (z.B. ", missingDateClose: ")", openNote: "Notiz öffnen (Strg+Klick für neuen Tab)", gotIt: "Verstanden", defaultEvent: "Anstehendes Ereignis", notifHeader: "Benachrichtigung!" },
-    "ja": { today: "今日", tomorrow: "明日", yesterday: "昨日", past: (days: number) => `${days}日前`, future: (days: number) => `${days}日`, missingDate: "日付を指定してください（例: ", missingDateClose: "）", openNote: "ノートを開く (Ctrl+クリックで新しいタブ)", gotIt: "了解", defaultEvent: "イベント", notifHeader: "通知！" },
-    "uk": { today: "Сьогодні", tomorrow: "Завтра", yesterday: "Вчора", past: (days: number) => { let noun = "днів"; if (days % 10 === 1 && days % 100 !== 11) noun = "день"; else if ([2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)) noun = "дні"; return `${days} ${noun} тому`; }, future: (days: number) => { let noun = "днів"; if (days % 10 === 1 && days % 100 !== 11) noun = "день"; else if ([2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)) noun = "дні"; return `${days} ${noun}`; }, missingDate: "Вкажіть цільову дату (напр. ", missingDateClose: ")", openNote: "Відкрити нотатку (Ctrl+клік для нової вкладки)", gotIt: "Зрозуміло", defaultEvent: "Майбутня подія", notifHeader: "Сповіщення!" },
-    "zh": { today: "今天", tomorrow: "明天", yesterday: "昨天", past: (days: number) => `${days} 天前`, future: (days: number) => `${days} 天`, missingDate: "提供目标日期（例如：", missingDateClose: "）", openNote: "打开笔记 (Ctrl+点击在新标签页打开)", gotIt: "知道了", defaultEvent: "即将到来的事件", notifHeader: "通知！" }
+    "en": { today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday", past: (days: number) => `${days} ${days === 1 ? "day" : "days"} ago`, future: (days: number) => `${days} ${days === 1 ? "day" : "days"}`, missingDate: "Hey, this is the Days Left plugin! Please provide the 'to:' or 'from:' parameter, or both (e.g. ", missingDateClose: ")", openNote: "Open note", defaultEvent: "Upcoming event", notifHeader: "Notification!" },
+    "pl": { today: "Dzisiaj", tomorrow: "Jutro", yesterday: "Wczoraj", past: (days: number) => `${days} ${days === 1 ? "dzień" : "dni"} temu`, future: (days: number) => `${days} ${days === 1 ? "dzień" : "dni"}`, missingDate: "Hej, tu wtyczka Days Left! Należy podać parametr 'to:' lub 'from:', albo oba (np. ", missingDateClose: ")", openNote: "Otwórz notatkę", defaultEvent: "Wydarzenie", notifHeader: "Powiadomienie!" },
+    "es": { today: "Hoy", tomorrow: "Mañana", yesterday: "Ayer", past: (days: number) => `Hace ${days} ${days === 1 ? "día" : "días"}`, future: (days: number) => `${days} ${days === 1 ? "día" : "días"}`, missingDate: "¡Hola, este es el plugin Days Left! Proporciona el parámetro 'to:' o 'from:', o ambos (ej. ", missingDateClose: ")", openNote: "Abrir nota", defaultEvent: "Próximo evento", notifHeader: "¡Notificación!" },
+    "fr": { today: "Aujourd'hui", tomorrow: "Demain", yesterday: "Hier", past: (days: number) => `Il y a ${days} ${days <= 1 ? "jour" : "jours"}`, future: (days: number) => `${days} ${days <= 1 ? "jour" : "jours"}`, missingDate: "Hé, c'est le plugin Days Left ! Veuillez fournir le paramètre 'to:' ou 'from:', ou les deux (ex. ", missingDateClose: ")", openNote: "Ouvrir la note", defaultEvent: "Événement à venir", notifHeader: "Notification !" },
+    "de": { today: "Heute", tomorrow: "Morgen", yesterday: "Gestern", past: (days: number) => `Vor ${days} ${days === 1 ? "Tag" : "Tagen"}`, future: (days: number) => `${days} ${days === 1 ? "Tag" : "Tage"}`, missingDate: "Hey, dies ist das Days Left Plugin! Bitte gib den 'to:' oder 'from:' Parameter an, oder beide (z.B. ", missingDateClose: ")", openNote: "Notiz öffnen", defaultEvent: "Anstehendes Ereignis", notifHeader: "Benachrichtigung!" },
+    "ja": { today: "今日", tomorrow: "明日", yesterday: "昨日", past: (days: number) => `${days}日前`, future: (days: number) => `${days}日`, missingDate: "こんにちは、Days Left プラグインです！ 'to:' または 'from:' パラメータ、あるいは両方を指定してください（例: ", missingDateClose: "）", openNote: "ノートを開く", defaultEvent: "イベント", notifHeader: "通知！" },
+    "uk": { today: "Сьогодні", tomorrow: "Завтра", yesterday: "Вчора", past: (days: number) => { let noun = "днів"; if (days % 10 === 1 && days % 100 !== 11) noun = "день"; else if ([2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)) noun = "дні"; return `${days} ${noun} тому`; }, future: (days: number) => { let noun = "днів"; if (days % 10 === 1 && days % 100 !== 11) noun = "день"; else if ([2, 3, 4].includes(days % 10) && ![12, 13, 14].includes(days % 100)) noun = "дні"; return `${days} ${noun}`; }, missingDate: "Гей, це плагін Days Left! Будь ласка, вкажіть параметр 'to:' або 'from:', або обидва (напр. ", missingDateClose: ")", openNote: "Відкрити нотатку", defaultEvent: "Майбутня подія", notifHeader: "Сповіщення!" },
+    "zh": { today: "今天", tomorrow: "明天", yesterday: "昨天", past: (days: number) => `${days} 天前`, future: (days: number) => `${days} 天`, missingDate: "嘿，这是 Days Left 插件！请提供 'to:' 或 'from:' 参数，或两者都提供（例如 ", missingDateClose: "）", openNote: "打开笔记", defaultEvent: "即将到来的事件", notifHeader: "通知！" }
 };
 
+// ==========================================================
+// 1b. SŁOWNIKI USTAWIEŃ (settingsI18n) - DO INTERFEJSU
+// ==========================================================
 const settingsI18n: Record<string, any> = {
-    "en": { langTitle: "Language", langName: "Select language", langDesc: "Changes the language of output texts.", instTitle: "Instructions", instTip: "Tip: Use commands to insert code blocks or inline tags quickly.", hotkeyBtn: "Configure hotkeys", globTitle: "Global configuration", globDefColor: "Default counter color", globDefColorDesc: "Color for future events.", globPastColor: "Past events color", globPastColorDesc: "Color for past events.", globHideOnPast: "Hide past events", globHideOnPastDesc: "true: removes the counter entirely. false: displays 'X days ago'.", globShowDaysText: "Show 'days' text", globShowDaysTextDesc: "true: '5 days'. false: just the number '5'.", globToday: "Use Today/Tomorrow text", globTodayDesc: "true: 'Today' / 'Tomorrow'. false: '0 days' / '1 day'.", globShowFinal: "Show final date", globShowFinalDesc: "true: shows the target date below the counter (code blocks only).", globFormat: "Final date format", globFormatDesc: "Date format styling. Example: 'YYYY-MM-DD' -> 2026-12-24.", momentLinkText: "Moment.js docs", spotTitle: "Spotlight mode", spotDays: "Spotlight threshold", spotDaysDesc: "Number of days before the event to apply highlight styling.", spotColor: "Spotlight color", spotColorDesc: "Color used when in spotlight zone.", spotBold: "Spotlight bold text", spotBoldDesc: "true: apply bold weight when in spotlight zone.", alertTitle: "Spotlight alerts", alertType: "Spotlight alert type", alertTypeDesc: "notice: popup. modal: large window. none: disabled.", alertNotice: "Notice", alertModal: "Modal", alertNone: "None", alertDuration: "Notice duration", alertDurationDesc: "Time in seconds before notice disappears (0 = stays until clicked).", resetTitle: "Reset settings", resetBtn: "Restore defaults", resetMsg: "Are you sure you want to restore all settings to their default values?", resetConfirm: "Yes, restore", resetCancel: "Cancel" },
-    "pl": { langTitle: "Język", langName: "Wybierz język", langDesc: "Zmienia język wyświetlanych tekstów.", instTitle: "Instrukcja", instTip: "Wskazówka: Używaj komend (Commands) dla szybkiego wstawiania bloków i tagów.", hotkeyBtn: "Konfiguruj skróty", globTitle: "Konfiguracja globalna", globDefColor: "Standardowy kolor", globDefColorDesc: "Kolor dla przyszłych wydarzeń.", globPastColor: "Kolor przeszłych wydarzeń", globPastColorDesc: "Kolor dla minionych dat.", globHideOnPast: "Ukryj minione wydarzenia", globHideOnPastDesc: "true: całkowicie ukrywa licznik. false: pokazuje 'X dni temu'.", globShowDaysText: "Pokazuj tekst 'dni'", globShowDaysTextDesc: "true: np. '5 dni'. false: wyświetla samo '5'.", globToday: "Używaj Dziś/Jutro", globTodayDesc: "true: 'Dzisiaj' / 'Jutro'. false: '0 dni' / '1 dzień'.", globShowFinal: "Pokazuj datę końcową", globShowFinalDesc: "true: wyświetla datę pod licznikiem (tylko w blokach kodu).", globFormat: "Format daty końcowej", globFormatDesc: "Format wyświetlania. Np.: 'YYYY-MM-DD' -> 2026-12-24.", momentLinkText: "Dokumentacja Moment.js", spotTitle: "Tryb Spotlight (Wyróżnienie)", spotDays: "Próg Spotlight", spotDaysDesc: "Liczba dni przed wydarzeniem, od której tekst zmienia wygląd.", spotColor: "Kolor Spotlight", spotColorDesc: "Kolor tekstu w strefie Spotlight.", spotBold: "Pogrubienie Spotlight", spotBoldDesc: "true: tekst w strefie Spotlight jest gruby.", alertTitle: "Powiadomienia Spotlight", alertType: "Typ powiadomienia", alertTypeDesc: "notice: dyskretny dymek. modal: duże okno na środku. none: brak.", alertNotice: "Dymek (Notice)", alertModal: "Okno (Modal)", alertNone: "Brak", alertDuration: "Czas trwania dymka (Notice)", alertDurationDesc: "Czas w sekundach (0 = nie znika do momentu kliknięcia).", resetTitle: "Zresetuj ustawienia", resetBtn: "Przywróć domyślne", resetMsg: "Czy na pewno chcesz przywrócić wszystkie ustawienia do wartości domyślnych?", resetConfirm: "Tak, przywróć", resetCancel: "Anuluj" },
-    "es": { langTitle: "Idioma", langName: "Seleccionar idioma", langDesc: "Cambia el idioma de los textos.", instTitle: "Instrucciones", instTip: "Consejo: Usa comandos para insertar rápido.", hotkeyBtn: "Configurar atajos", globTitle: "Configuración global", globDefColor: "Color predeterminado", globDefColorDesc: "Eventos futuros.", globPastColor: "Color pasado", globPastColorDesc: "Eventos pasados.", globHideOnPast: "Ocultar eventos pasados", globHideOnPastDesc: "true: oculta. false: 'hace X días'.", globShowDaysText: "Mostrar texto 'días'", globShowDaysTextDesc: "true/false.", globToday: "Usar texto Hoy/Mañana", globTodayDesc: "true/false.", globShowFinal: "Mostrar fecha final", globShowFinalDesc: "true/false.", globFormat: "Formato de fecha", globFormatDesc: "Ej: 'YYYY-MM-DD'.", momentLinkText: "Docs Moment.js", spotTitle: "Modo Spotlight", spotDays: "Días Spotlight", spotDaysDesc: "Días antes.", spotColor: "Color Spotlight", spotColorDesc: "Color.", spotBold: "Texto en negrita", spotBoldDesc: "true/false.", alertTitle: "Alertas Spotlight", alertType: "Tipo de alerta", alertTypeDesc: "notice / modal / none.", alertNotice: "Aviso", alertModal: "Ventana", alertNone: "Ninguno", alertDuration: "Duración del aviso", alertDurationDesc: "Segundos (0 = infinito).", resetTitle: "Restablecer ajustes", resetBtn: "Restaurar valores", resetMsg: "¿Estás seguro de restaurar los valores predeterminados?", resetConfirm: "Sí, restaurar", resetCancel: "Cancelar" },
-    "fr": { langTitle: "Langue", langName: "Sélectionner la langue", langDesc: "Change la langue du texte.", instTitle: "Instructions", instTip: "Astuce: Utilisez les commandes.", hotkeyBtn: "Configurer les raccourcis", globTitle: "Configuration globale", globDefColor: "Couleur par défaut", globDefColorDesc: "Événements futurs.", globPastColor: "Couleur passée", globPastColorDesc: "Événements passés.", globHideOnPast: "Masquer les événements passés", globHideOnPastDesc: "true/false.", globShowDaysText: "Afficher le texte 'jours'", globShowDaysTextDesc: "true/false.", globToday: "Utiliser Aujourd'hui/Demain", globTodayDesc: "true/false.", globShowFinal: "Afficher la date de fin", globShowFinalDesc: "true/false.", globFormat: "Format de la date", globFormatDesc: "Ex: 'YYYY-MM-DD'.", momentLinkText: "Docs Moment.js", spotTitle: "Mode Spotlight", spotDays: "Seuil Spotlight", spotDaysDesc: "Jours avant.", spotColor: "Couleur Spotlight", spotColorDesc: "Couleur.", spotBold: "Texte en gras", spotBoldDesc: "true/false.", alertTitle: "Alertes Spotlight", alertType: "Type d'alerte", alertTypeDesc: "notice / modal / none.", alertNotice: "Notice", alertModal: "Modal", alertNone: "Aucun", alertDuration: "Durée de la notice", alertDurationDesc: "Secondes.", resetTitle: "Réinitialiser les paramètres", resetBtn: "Restaurer par défaut", resetMsg: "Voulez-vous vraiment restaurer les paramètres par défaut ?", resetConfirm: "Oui", resetCancel: "Annuler" },
-    "de": { langTitle: "Sprache", langName: "Sprache auswählen", langDesc: "Textsprache ändern.", instTitle: "Anleitung", instTip: "Tipp: Verwende Befehle.", hotkeyBtn: "Tastenkürzel konfigurieren", globTitle: "Globale Konfiguration", globDefColor: "Standardfarbe", globDefColorDesc: "Zukünftige Ereignisse.", globPastColor: "Vergangene Farbe", globPastColorDesc: "Vergangene Ereignisse.", globHideOnPast: "Vergangene ausblenden", globHideOnPastDesc: "true/false.", globShowDaysText: "Tage-Text anzeigen", globShowDaysTextDesc: "true/false.", globToday: "Heute/Morgen verwenden", globTodayDesc: "true/false.", globShowFinal: "Enddatum anzeigen", globShowFinalDesc: "true/false.", globFormat: "Datumsformat", globFormatDesc: "Z.B.: 'YYYY-MM-DD'.", momentLinkText: "Moment.js Docs", spotTitle: "Spotlight-Modus", spotDays: "Spotlight-Tage", spotDaysDesc: "Tage vorher.", spotColor: "Spotlight-Farbe", spotColorDesc: "Farbe.", spotBold: "Fetter Text", spotBoldDesc: "true/false.", alertTitle: "Spotlight-Alarme", alertType: "Alarmtyp", alertTypeDesc: "notice / modal / none.", alertNotice: "Benachrichtigung", alertModal: "Fenster", alertNone: "Keiner", alertDuration: "Dauer", alertDurationDesc: "Sekunden.", resetTitle: "Einstellungen zurücksetzen", resetBtn: "Standardwerte", resetMsg: "Sind Sie sicher, dass Sie die Standardwerte wiederherstellen möchten?", resetConfirm: "Ja", resetCancel: "Abbrechen" },
-    "ja": { langTitle: "言語", langName: "言語を選択", langDesc: "テキストの言語を変更。", instTitle: "使い方", instTip: "ヒント: コマンドを使用。", hotkeyBtn: "ホットキー設定", globTitle: "グローバル設定", globDefColor: "デフォルトの色", globDefColorDesc: "未来のイベント。", globPastColor: "過去の色", globPastColorDesc: "過去のイベント。", globHideOnPast: "過去のイベントを隠す", globHideOnPastDesc: "true/false。", globShowDaysText: "「日」テキストを表示", globShowDaysTextDesc: "true/false。", globToday: "今日/明日を使用", globTodayDesc: "true/false。", globShowFinal: "終了日を表示", globShowFinalDesc: "true/false。", globFormat: "日付フォーマット", globFormatDesc: "例: 'YYYY-MM-DD'。", momentLinkText: "Moment.js ドキュメント", spotTitle: "Spotlightモード", spotDays: "Spotlightのしきい値", spotDaysDesc: "日数。", spotColor: "Spotlightの色", spotColorDesc: "色。", spotBold: "太字にする", spotBoldDesc: "true/false。", alertTitle: "Spotlightアラート", alertType: "アラートタイプ", alertTypeDesc: "notice / modal / none。", alertNotice: "通知", alertModal: "モーダル", alertNone: "なし", alertDuration: "通知の表示時間", alertDurationDesc: "秒（0 = 無限）。", resetTitle: "設定をリセット", resetBtn: "デフォルトに戻す", resetMsg: "すべての設定をデフォルトに戻してもよろしいですか？", resetConfirm: "はい", resetCancel: "キャンセル" },
-    "uk": { langTitle: "Мова", langName: "Виберіть мову", langDesc: "Змінює мову текстів.", instTitle: "Інструкція", instTip: "Підказка: Використовуйте команди.", hotkeyBtn: "Налаштувати гарячі клавіші", globTitle: "Глобальна конфігурація", globDefColor: "Стандартний колір", globDefColorDesc: "Майбутні події.", globPastColor: "Колір минулих", globPastColorDesc: "Минулі події.", globHideOnPast: "Приховати минулі", globHideOnPastDesc: "true/false.", globShowDaysText: "Показувати текст 'днів'", globShowDaysTextDesc: "true/false.", globToday: "Використовувати Сьогодні", globTodayDesc: "true/false.", globShowFinal: "Показувати кінцеву дату", globShowFinalDesc: "true/false.", globFormat: "Формат дати", globFormatDesc: "Напр: 'YYYY-MM-DD'.", momentLinkText: "Документація Moment.js", spotTitle: "Режим Spotlight", spotDays: "Поріг Spotlight", spotDaysDesc: "Днів до.", spotColor: "Колір Spotlight", spotColorDesc: "Колір.", spotBold: "Жирний текст", spotBoldDesc: "true/false.", alertTitle: "Сповіщення Spotlight", alertType: "Тип сповіщення", alertTypeDesc: "notice / modal / none.", alertNotice: "Повідомлення", alertModal: "Вікно", alertNone: "Немає", alertDuration: "Тривалість повідомлення", alertDurationDesc: "Секунди.", resetTitle: "Скинути налаштування", resetBtn: "Відновити замовчування", resetMsg: "Ви впевнені, що хочете відновити всі налаштування за замовчуванням?", resetConfirm: "Так", resetCancel: "Скасувати" },
-    "zh": { langTitle: "语言", langName: "选择语言", langDesc: "更改输出文本的语言。", instTitle: "说明", instTip: "提示：使用命令快速插入代码块。", hotkeyBtn: "配置快捷键", globTitle: "全局配置", globDefColor: "默认计数器颜色", globDefColorDesc: "未来事件的颜色。", globPastColor: "过去事件颜色", globPastColorDesc: "过去事件的颜色。", globHideOnPast: "隐藏过去事件", globHideOnPastDesc: "true/false.", globShowDaysText: "显示“天”文本", globShowDaysTextDesc: "true/false.", globToday: "使用今天/明天文本", globTodayDesc: "true/false.", globShowFinal: "显示最终日期", globShowFinalDesc: "true/false.", globFormat: "最终日期格式", globFormatDesc: "例如：'YYYY-MM-DD'。", momentLinkText: "Moment.js 文档", spotTitle: "Spotlight 模式", spotDays: "Spotlight 阈值", spotDaysDesc: "事件发生前的天数。", spotColor: "Spotlight 颜色", spotColorDesc: "颜色。", spotBold: "加粗文本", spotBoldDesc: "true/false.", alertTitle: "Spotlight 警报", alertType: "警报类型", alertTypeDesc: "notice / modal / none.", alertNotice: "通知", alertModal: "弹窗", alertNone: "无", alertDuration: "通知持续时间", alertDurationDesc: "秒数（0 = 一直显示）。", resetTitle: "重置设置", resetBtn: "恢复默认值", resetMsg: "您确定要将所有设置恢复为默认值吗？", resetConfirm: "是的，恢复", resetCancel: "取消" }
+    "en": { uiLangName: "Settings interface language", uiLangDesc: "Changes the language of this configurations panel.", langTitle: "Plugin language", langName: "Counter display language", langDesc: "Changes the language of countdown outputs in notes.", instTitle: "Instructions & shortcuts preview", instTip: "Tip: Below is a live preview of the block generated by your shortcut settings:", hotkeyBtn: "Configure hotkeys", globTitle: "Global configuration", globDefText: "Event label (text)", globDefTextDesc: "No default value. Toggle inclusion in hotkey.", globTo: "Target date (to)", globToDesc: "Target date for the countdown. No global value.", globFrom: "Starting date (from)", globFromDesc: "If set, calculates a duration instead of dynamic countdown. No global value.", globDefColor: "Default counter color", globDefColorDesc: "Color for future events.", globPastColor: "Past events color", globPastColorDesc: "Color for elapsed dates.", globHideOnPast: "Hide past events", globHideOnPastDesc: "true: hides the counter entirely when elapsed. false: displays time passed.", globShowDaysText: "Show 'days' unit", globShowDaysTextDesc: "true: displays '5 days'. false: displays just the number '5'.", globToday: "Format Yesterday/Today/Tomorrow", globTodayDesc: "true: uses text ('Yesterday'/'Today'/'Tomorrow'). false: uses numbers.", globShowFinal: "Show target date", globShowFinalDesc: "true: displays the exact date below the counter.", globFormat: "Final date format", globFormatDesc: "Formatting style for final date using {{link}} tokens.", spotTitle: "Spotlight mode (highlight)", spotDays: "Spotlight threshold", spotDaysDesc: "Number of days before the event to trigger highlight styling. Note: Works ONLY for dynamic upcoming events (no 'from' parameter).", spotColor: "Spotlight color", spotColorDesc: "Text color applied within the spotlight zone.", spotBold: "Spotlight bold text", spotBoldDesc: "true: bolds the counter within the spotlight zone.", alertTitle: "Spotlight alerts", alertType: "Alert type", alertTypeDesc: "notice: popup bubble. modal: large window panel. none: disabled.", alertDuration: "Notice duration", alertDurationDesc: "Time in seconds (applies ONLY to 'notice' type alerts). Set 0 to persist.", resetTitle: "Reset settings", resetBtn: "Restore defaults", resetMsg: "Are you sure you want to restore all settings to default values?", resetConfirm: "Yes, restore", resetCancel: "Cancel", tplHeaderParam: "Parameter", tplHeaderValue: "Default value", tplHeaderShortcut: "In hotkey", supportTitle: "Support development", supportDesc: "If you enjoy using this plugin and would like to support my work, please consider buying me a coffee. Thank you!", supportBtn: "Buy me a coffee ❤", eg: "e.g." },
+    "pl": { uiLangName: "Język ustawień wtyczki", uiLangDesc: "Zmienia język menu konfiguracyjnego w tym panelu.", langTitle: "Ustawienia języka", langName: "Język wyświetlania licznika", langDesc: "Zmienia język komunikatów odliczania wewnątrz notatek.", instTitle: "Instrukcja i podgląd skrótu", instTip: "Wskazówka: Poniżej znajduje się podgląd bloku generowanego przez Twój skrót blokowy:", hotkeyBtn: "Konfiguruj skróty", globTitle: "Globalna konfiguracja", globDefText: "Nazwa wydarzenia (text)", globDefTextDesc: "Brak wartości domyślnej. Ustaw czy dodawać parametr w skrócie.", globTo: "Data docelowa (to)", globToDesc: "Data docelowa odliczania. Brak wartości globalnej.", globFrom: "Data początkowa (from)", globFromDesc: "Jeśli podana, oblicza czas trwania zamiast odliczania. Brak wartości globalnej.", globDefColor: "Standardowy kolor", globDefColorDesc: "Kolor licznika dla przyszłych wydarzeń.", globPastColor: "Kolor przeszłych", globPastColorDesc: "Kolor licznika dla minionych dat.", globHideOnPast: "Ukryj minione", globHideOnPastDesc: "true: całkowicie ukrywa licznik po upływie daty. false: pokazuje miniony czas.", globShowDaysText: "Pokazuj tekst 'dni'", globShowDaysTextDesc: "true: np. '5 dni'. false: wyświetla samo '5'.", globToday: "Format Wczoraj/Dziś/Jutro", globTodayDesc: "true: słowa ('Wczoraj' / 'Dzisiaj' / 'Jutro'). false: liczby.", globShowFinal: "Pokazuj datę końcową", globShowFinalDesc: "true: wyświetla datę pod licznikiem (z 'to' lub 'from').", globFormat: "Format daty końcowej", globFormatDesc: "Format wyświetlania daty (tokeny {{link}}).", spotTitle: "Tryb Spotlight (wyróżnienie)", spotDays: "Próg Spotlight", spotDaysDesc: "Liczba dni przed wydarzeniem, od której tekst zmienia wygląd. Uwaga: Działa TYLKO dla nadchodzących wydarzeń (nie zadziała z parametrem 'from').", spotColor: "Kolor Spotlight", spotColorDesc: "Kolor tekstu w strefie Spotlight.", spotBold: "Pogrubienie Spotlight", spotBoldDesc: "true: tekst w strefie Spotlight jest pogrubiony.", alertTitle: "Powiadomienia Spotlight", alertType: "Typ powiadomienia", alertTypeDesc: "notice: dyskretny dymek. modal: duże okno na środku. none: brak.", alertDuration: "Czas dymka", alertDurationDesc: "Czas wyświetlania w sekundach (dotyczy WYŁĄCZNIE powiadomień Notice). 0 = stałe.", resetTitle: "Zresetuj ustawienia", resetBtn: "Przywróć domyślne", resetMsg: "Czy na pewno chcesz przywrócić wszystkie ustawienia do wartości domyślnych?", resetConfirm: "Tak, przywróć", resetCancel: "Anuluj", tplHeaderParam: "Parametr", tplHeaderValue: "Wartość domyślna", tplHeaderShortcut: "W skrócie", supportTitle: "Wsparcie rozwoju", supportDesc: "Jeśli podoba Ci się ta wtyczka i chcesz wesprzeć moją pracę, postaw mi wirtualną kawę. Dziękuję!", supportBtn: "Postaw mi kawę ❤", eg: "np." },
+    "es": { uiLangName: "Idioma de configuración", uiLangDesc: "Cambia el idioma de este panel.", langTitle: "Idioma del plugin", langName: "Idioma del contador", langDesc: "Cambia el idioma en las notas.", instTitle: "Instrucciones y atajos", instTip: "Vista previa del bloque:", hotkeyBtn: "Configurar atajos", globTitle: "Configuración global", globDefText: "Etiqueta (text)", globDefTextDesc: "Sin valor predeterminado.", globTo: "Fecha objetivo (to)", globToDesc: "Fecha objetivo para la cuenta regresiva. Sin valor.", globFrom: "Fecha de inicio (from)", globFromDesc: "Si se establece, calcula una duración en lugar de una cuenta regresiva.", globDefColor: "Color predeterminado", globDefColorDesc: "Color para futuros.", globPastColor: "Color pasado", globPastColorDesc: "Color para eventos pasados.", globHideOnPast: "Ocultar pasados", globHideOnPastDesc: "true: oculta todo. false: muestra tiempo pasado.", globShowDaysText: "Mostrar unidad", globShowDaysTextDesc: "true: '5 días'. false: solo '5'.", globToday: "Formato Ayer/Hoy/Mañana", globTodayDesc: "true: palabras. false: números.", globShowFinal: "Mostrar fecha", globShowFinalDesc: "Muestra la fecha final debajo.", globFormat: "Formato de fecha", globFormatDesc: "Estilo de formato de fecha final (tokens {{link}}).", spotTitle: "Modo Spotlight", spotDays: "Umbral", spotDaysDesc: "Días antes para resaltar. Nota: Funciona SOLO para próximos eventos dinámicos (sin parámetro 'from').", spotColor: "Color Spotlight", spotColorDesc: "Color de texto resaltado.", spotBold: "Texto en negrita", spotBoldDesc: "Aplica negrita al resaltar.", alertTitle: "Alertas Spotlight", alertType: "Tipo de alerta", alertTypeDesc: "notice / modal / none.", alertDuration: "Duración de aviso", alertDurationDesc: "Segundos (solo 'notice').", resetTitle: "Restablecer configuración", resetBtn: "Restaurar", resetMsg: "¿Restaurar valores predeterminados?", resetConfirm: "Sí", resetCancel: "Cancelar", tplHeaderParam: "Parámetro", tplHeaderValue: "Valor predeterminado", tplHeaderShortcut: "En atajo", supportTitle: "Apoyar desarrollo", supportDesc: "¡Considera invitarme a un café!", supportBtn: "Invítame a un café ❤", eg: "ej." },
+    "fr": { uiLangName: "Langue des paramètres", uiLangDesc: "Change la langue du panneau.", langTitle: "Langue du plugin", langName: "Langue du compteur", langDesc: "Change la langue dans les notes.", instTitle: "Instructions et raccourcis", instTip: "Aperçu du bloc généré :", hotkeyBtn: "Configurer", globTitle: "Configuration globale", globDefText: "Étiquette (text)", globDefTextDesc: "Pas de valeur par défaut.", globTo: "Date cible (to)", globToDesc: "Date cible du compte à rebours.", globFrom: "Date de début (from)", globFromDesc: "Si définie, calcule une durée au lieu d'un compte à rebours.", globDefColor: "Couleur par défaut", globDefColorDesc: "Couleur événements futurs.", globPastColor: "Couleur passée", globPastColorDesc: "Couleur événements passés.", globHideOnPast: "Masquer passés", globHideOnPastDesc: "true: masque. false: montre temps passé.", globShowDaysText: "Afficher l'unité", globShowDaysTextDesc: "true: '5 jours'. false: '5'.", globToday: "Format Hier/Aujourd'hui/Demain", globTodayDesc: "true: texte. false: nombres.", globShowFinal: "Afficher date fin", globShowFinalDesc: "Affiche la date exacte.", globFormat: "Format date", globFormatDesc: "Style de formatage pour la date de fin (jetons {{link}}).", spotTitle: "Mode Spotlight", spotDays: "Seuil Spotlight", spotDaysDesc: "Jours avant surbrillance. Note: Fonctionne UNIQUEMENT pour les événements à venir (sans paramètre 'from').", spotColor: "Couleur Spotlight", spotColorDesc: "Couleur de surbrillance.", spotBold: "Texte en gras", spotBoldDesc: "Applique le texte en gras.", alertTitle: "Alertes Spotlight", alertType: "Type", alertTypeDesc: "notice / modal / none.", alertDuration: "Durée notice", alertDurationDesc: "Secondes (seulement 'notice').", resetTitle: "Réinitialiser les paramètres", resetBtn: "Restaurer", resetMsg: "Restaurer par défaut ?", resetConfirm: "Oui", resetCancel: "Annuler", tplHeaderParam: "Paramètre", tplHeaderValue: "Valeur par défaut", tplHeaderShortcut: "Raccourci", supportTitle: "Soutenir le développement", supportDesc: "Pensez à m'offrir un café. Merci !", supportBtn: "M'offrir un café ❤", eg: "ex." },
+    "de": { uiLangName: "Einstellungssprache", uiLangDesc: "Ändert die Sprache dieses Panels.", langTitle: "Plugin-Sprache", langName: "Zählersprache", langDesc: "Ändert die Sprache in den Notizen.", instTitle: "Anleitung & Shortcuts", instTip: "Vorschau des generierten Blocks:", hotkeyBtn: "Tastenkürzel", globTitle: "Globale Konfiguration", globDefText: "Ereignisname (text)", globDefTextDesc: "Kein Standardwert.", globTo: "Zieldatum (to)", globToDesc: "Zieldatum für den Countdown.", globFrom: "Startdatum (from)", globFromDesc: "Wenn festgelegt, wird eine Dauer statt eines Countdowns berechnet.", globDefColor: "Standardfarbe", globDefColorDesc: "Farbe für Zukunft.", globPastColor: "Farbe für Vergangenheit", globPastColorDesc: "Farbe für vergangene Daten.", globHideOnPast: "Vergangene ausblenden", globHideOnPastDesc: "true: ausblenden. false: vergangene Zeit anzeigen.", globShowDaysText: "Einheit anzeigen", globShowDaysTextDesc: "true: '5 Tage'. false: '5'.", globToday: "Gestern/Heute/Morgen", globTodayDesc: "true: Wörter. false: Zahlen.", globShowFinal: "Zieldatum zeigen", globShowFinalDesc: "Zeigt das genaue Datum an.", globFormat: "Datumsformat", globFormatDesc: "Formatierung für Enddatum ({{link}} Tokens).", spotTitle: "Spotlight-Modus", spotDays: "Schwellenwert", spotDaysDesc: "Tage vorher für Hervorhebung. Hinweis: Funktioniert NUR für zukünftige Ereignisse (ohne 'from' Parameter).", spotColor: "Spotlight-Farbe", spotColorDesc: "Farbe der Hervorhebung.", spotBold: "Fetter Text", spotBoldDesc: "Macht den Text fett.", alertTitle: "Spotlight-Alarme", alertType: "Typ", alertTypeDesc: "notice / modal / none.", alertDuration: "Anzeigedauer", alertDurationDesc: "Sekunden (nur für 'notice').", resetTitle: "Einstellungen zurücksetzen", resetBtn: "Standardwerte", resetMsg: "Standardwerte wiederherstellen?", resetConfirm: "Ja", resetCancel: "Abbrechen", tplHeaderParam: "Parameter", tplHeaderValue: "Standard", tplHeaderShortcut: "Im Kürzel", supportTitle: "Entwicklung unterstützen", supportDesc: "Spendier mir einen Kaffee. Danke!", supportBtn: "Spendier mir einen Kaffee ❤", eg: "z.B." },
+    "ja": { uiLangName: "設定言語", uiLangDesc: "このパネルの言語を変更します。", langTitle: "プラグインの言語", langName: "カウンターの言語", langDesc: "ノート内の出力言語を変更します。", instTitle: "使い方とショートカット", instTip: "ショートカットのプレビュー:", hotkeyBtn: "ショートカット設定", globTitle: "グローバル設定", globDefText: "イベント名 (text)", globDefTextDesc: "デフォルト値はありません。", globTo: "目標日 (to)", globToDesc: "カウントダウンの目標日。デフォルト値はありません。", globFrom: "開始日 (from)", globFromDesc: "設定すると、カウントダウンの代わりに期間を計算します。", globDefColor: "デフォルト色", globDefColorDesc: "未来のイベント色。", globPastColor: "過去の色", globPastColorDesc: "過去のイベント色。", globHideOnPast: "過去を隠す", globHideOnPastDesc: "true: 完全に隠す。false: 経過時間を表示。", globShowDaysText: "単位を表示", globShowDaysTextDesc: "true: '5日'。false: '5'。", globToday: "昨日/今日/明日", globTodayDesc: "true: テキスト。false: 数字。", globShowFinal: "終了日を表示", globShowFinalDesc: "正確な日付を表示します。", globFormat: "日付フォーマット", globFormatDesc: "終了日のフォーマット ({{link}} トークン)。", spotTitle: "Spotlight モード", spotDays: "しきい値", spotDaysDesc: "ハイライトを適用する日数。 注意: 将来のイベントのみ機能します（'from' パラメータなし）。", spotColor: "Spotlight の色", spotColorDesc: "ハイライトの色。", spotBold: "太字", spotBoldDesc: "太字にします。", alertTitle: "Spotlight アラート", alertType: "タイプ", alertTypeDesc: "notice / modal / none。", alertDuration: "通知の長さ", alertDurationDesc: "秒 (noticeのみ)。", resetTitle: "設定をリセット", resetBtn: "デフォルトに戻す", resetMsg: "デフォルトに戻しますか？", resetConfirm: "はい", resetCancel: "キャンセル", tplHeaderParam: "パラメータ", tplHeaderValue: "デフォルト", tplHeaderShortcut: "ショートカット", supportTitle: "開発支援", supportDesc: "コーヒーをご馳走していただけると嬉しいです！", supportBtn: "コーヒーをご馳走する ❤", eg: "例:" },
+    "uk": { uiLangName: "Мова налаштувань", uiLangDesc: "Змінює мову цієї панелі.", langTitle: "Мова плагіна", langName: "Мова лічильника", langDesc: "Змінює мову в нотатках.", instTitle: "Інструкція та ярлики", instTip: "Попередній перегляд ярлика:", hotkeyBtn: "Гарячі клавіші", globTitle: "Глобальна конфігурація", globDefText: "Назва (text)", globDefTextDesc: "Немає значення за замовчуванням.", globTo: "Кінцева дата (to)", globToDesc: "Немає значення за замовчуванням.", globFrom: "Початкова дата (from)", globFromDesc: "Якщо вказано, обчислює тривалість замість зворотного відліку.", globDefColor: "Стандартний колір", globDefColorDesc: "Для майбутніх подій.", globPastColor: "Колір минулих", globPastColorDesc: "Для минулих подій.", globHideOnPast: "Приховати минулі", globHideOnPastDesc: "true: приховує. false: показує час.", globShowDaysText: "Показувати одиниці", globShowDaysTextDesc: "true: '5 д.'. false: '5'.", globToday: "Вчора/Сьогодні/Завтра", globTodayDesc: "true: слова. false: числа.", globShowFinal: "Кінцева дата", globShowFinalDesc: "Показувати точну дату.", globFormat: "Формат дати", globFormatDesc: "Стиль форматування кінцевої дати (токени {{link}}).", spotTitle: "Режим Spotlight", spotDays: "Поріг", spotDaysDesc: "Днів до події для виділення. Примітка: Працює ТІЛЬКИ для майбутніх подій (без параметра 'from').", spotColor: "Колір Spotlight", spotColorDesc: "Колір виділення.", spotBold: "Жирний", spotBoldDesc: "Робить текст жирним.", alertTitle: "Сповіщення Spotlight", alertType: "Тип", alertTypeDesc: "notice / modal / none.", alertDuration: "Тривалість (с)", alertDurationDesc: "Секунди (лише для notice).", resetTitle: "Скинути налаштування", resetBtn: "Відновити", resetMsg: "Відновити за замовчуванням?", resetConfirm: "Так", resetCancel: "Скасувати", tplHeaderParam: "Параметр", tplHeaderValue: "Значення", tplHeaderShortcut: "Ярлик", supportTitle: "Підтримка", supportDesc: "Будь ласка, купіть мені каву. Дякую!", supportBtn: "Купити мені каву ❤", eg: "напр." },
+    "zh": { uiLangName: "设置语言", uiLangDesc: "更改此面板的语言。", langTitle: "插件语言", langName: "计数器语言", langDesc: "更改笔记中的输出语言。", instTitle: "说明与快捷键", instTip: "快捷键生成的块预览:", hotkeyBtn: "配置快捷键", globTitle: "全局配置", globDefText: "事件标签 (text)", globDefTextDesc: "无默认值。", globTo: "目标日期 (to)", globToDesc: "无默认值。", globFrom: "开始日期 (from)", globFromDesc: "如果设置，将计算持续时间而不是倒计时。", globDefColor: "默认颜色", globDefColorDesc: "未来事件的颜色。", globPastColor: "过去颜色", globPastColorDesc: "过去事件的颜色。", globHideOnPast: "隐藏过去", globHideOnPastDesc: "true: 完全隐藏。 false: 显示经过的时间。", globShowDaysText: "显示单位", globShowDaysTextDesc: "true: '5 天'。 false: '5'。", globToday: "昨天/今天/明天", globTodayDesc: "true: 文字。 false: 数字。", globShowFinal: "显示日期", globShowFinalDesc: "显示准确的结束日期。", globFormat: "日期格式", globFormatDesc: "结束日期格式 (使用 {{link}} 令牌)。", spotTitle: "Spotlight 模式", spotDays: "阈值", spotDaysDesc: "高亮显示的天数。注意：仅适用于即将到来的动态事件（无 'from' 参数）。", spotColor: "颜色", spotColorDesc: "高亮颜色。", spotBold: "加粗", spotBoldDesc: "加粗文本。", alertTitle: "Spotlight 警报", alertType: "类型", alertTypeDesc: "notice / modal / none.", alertDuration: "通知时间 (秒)", alertDurationDesc: "仅限 'notice' 类型。", resetTitle: "重置设置", resetBtn: "恢复默认", resetMsg: "确定要恢复默认设置吗？", resetConfirm: "确定", resetCancel: "取消", tplHeaderParam: "参数", tplHeaderValue: "默认值", tplHeaderShortcut: "快捷键", supportTitle: "支持开发", supportDesc: "请考虑请我喝杯咖啡。谢谢！", supportBtn: "请我喝杯咖啡 ❤", eg: "例如" }
 };
 
 interface DaysLeftSettings {
-    language: string; dayCounterColor: string; dayCounterColorPast: string; hideOnPast: boolean;
+    uiLanguage: string; language: string; dayCounterColor: string; dayCounterColorPast: string; hideOnPast: boolean;
     showDaysText: boolean; todayTomorrow: boolean; showFinalDate: boolean; finalDateFormat: string;
-    spotlightDays: string; spotlightColor: string; spotlightBold: boolean;
+    spotlightDays: number; spotlightColor: string; spotlightBold: boolean;
     spotlightAlert: string; spotlightAlertDuration: number;
+    templateIncludeLanguage: boolean; templateIncludeText: boolean; templateIncludeTo: boolean; templateIncludeFrom: boolean; templateIncludeDayCounterColor: boolean; templateIncludeDayCounterColorPast: boolean;
+    templateIncludeHideOnPast: boolean; templateIncludeShowDaysText: boolean; templateIncludeTodayTomorrow: boolean;
+    templateIncludeShowFinalDate: boolean; templateIncludeFinalDateFormat: boolean; templateIncludeSpotlightDays: boolean;
+    templateIncludeSpotlightColor: boolean; templateIncludeSpotlightBold: boolean; templateIncludeSpotlightAlert: boolean;
+    templateIncludeSpotlightAlertDuration: boolean;
 }
 
 const DEFAULT_SETTINGS: DaysLeftSettings = {
-    language: 'en', dayCounterColor: 'var(--text-normal)', dayCounterColorPast: 'var(--text-faint)', hideOnPast: false,
+    uiLanguage: 'en', language: 'en', dayCounterColor: 'var(--text-normal)', dayCounterColorPast: 'var(--text-faint)', hideOnPast: false,
     showDaysText: true, todayTomorrow: true, showFinalDate: true, finalDateFormat: 'D MMMM YYYY | dddd',
-    spotlightDays: '2', spotlightColor: '#af4b4b', spotlightBold: true,
-    spotlightAlert: 'none', spotlightAlertDuration: 30
+    spotlightDays: 2, spotlightColor: '#c86a6a', spotlightBold: true,
+    spotlightAlert: 'notice', spotlightAlertDuration: 30,
+    templateIncludeLanguage: false, templateIncludeText: true, templateIncludeTo: true, templateIncludeFrom: false, templateIncludeDayCounterColor: false, templateIncludeDayCounterColorPast: false,
+    templateIncludeHideOnPast: false, templateIncludeShowDaysText: false, templateIncludeTodayTomorrow: false,
+    templateIncludeShowFinalDate: false, templateIncludeFinalDateFormat: false, templateIncludeSpotlightDays: false,
+    templateIncludeSpotlightColor: false, templateIncludeSpotlightBold: false, templateIncludeSpotlightAlert: false,
+    templateIncludeSpotlightAlertDuration: false
 }
 
-function renderMissingDateError(container: HTMLElement, suggestion: string, isInline: boolean, lang: any) {
-    container.empty();
-    container.addClass("daysleft-error");
-    container.appendText(lang.missingDate);
-    container.createEl("code", { text: isInline ? suggestion : `to: ${suggestion}` });
-    container.appendText(lang.missingDateClose);
-}
-
-// MECHANIZM ODŚWIEŻANIA LIVE PREVIEW (CM6)
 const pluginUpdateEffect = StateEffect.define<null>();
 
+function renderMissingDateError(container: HTMLElement, isInline: boolean, lang: any) {
+    container.empty();
+    container.addClass("daysleft-error");
+    container.createSpan({ text: lang.missingDate });
+    container.createEl("code", { text: isInline ? "2025-10-08" : "to: 2025-10-08" });
+    container.createSpan({ text: lang.missingDateClose });
+}
+
 // ==========================================================
-// 2. MODAL I POWIADOMIENIA
+// 2. MODALE I POWIADOMIENIA SYSTEMOWE
 // ==========================================================
 class ResetConfirmModal extends Modal {
     constructor(app: App, private langDict: any, private onConfirm: () => void) { super(app); }
@@ -63,17 +75,14 @@ class ResetConfirmModal extends Modal {
         const container = contentEl.createDiv({ cls: "daysleft-modal-container" });
         container.createEl("h2", { text: this.langDict.resetTitle });
         container.createEl("p", { text: this.langDict.resetMsg });
-        
         const btnRow = container.createDiv({ cls: "daysleft-modal-btn-row" });
         const cancelBtn = btnRow.createEl("button", { text: this.langDict.resetCancel });
-        cancelBtn.addEventListener("click", () => this.close());
-        
+        cancelBtn.onclick = () => this.close();
         const confirmBtn = btnRow.createEl("button", { text: this.langDict.resetConfirm });
         confirmBtn.style.color = "var(--text-error)";
         confirmBtn.style.borderColor = "var(--text-error)";
-        confirmBtn.addEventListener("click", () => { this.onConfirm(); this.close(); });
+        confirmBtn.onclick = () => { this.onConfirm(); this.close(); };
     }
-    onClose() { this.contentEl.empty(); }
 }
 
 class CountdownAlertModal extends Modal {
@@ -82,186 +91,171 @@ class CountdownAlertModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         const container = contentEl.createDiv({ cls: "daysleft-modal-container" });
-        container.createDiv({ text: "Days left", cls: "daysleft-modal-subtitle" });
+        container.createDiv({ text: "Days Left", cls: "daysleft-modal-subtitle" });
         container.createEl("h1", { text: this.lang.notifHeader, cls: "daysleft-modal-title" });
         container.createEl("h2", { text: this.title });
         container.createEl("p", { text: this.msg, cls: "daysleft-modal-message" });
-        
-        const btnRow = container.createDiv({ cls: "daysleft-modal-btn-row" });
         if (!this.isActive) {
-            const noteBtn = btnRow.createEl("button", { text: this.lang.openNote });
-            noteBtn.addEventListener("click", (e: MouseEvent) => {
-                const newLeaf = e.ctrlKey || e.metaKey;
-                this.app.workspace.openLinkText(this.sourcePath, "", newLeaf);
-                this.close();
-            });
+            const btn = container.createEl("button", { text: this.lang.openNote, cls: "mod-cta" });
+            btn.onclick = () => { this.app.workspace.openLinkText(this.sourcePath, "", true); this.close(); };
         }
-        const okBtn = btnRow.createEl("button", { text: this.lang.gotIt });
-        okBtn.addEventListener("click", () => this.close());
     }
-    onClose() { this.contentEl.empty(); }
 }
 
 function triggerNotification(plugin: DaysLeftPlugin, text: string, diffDays: number, type: string, uniqueId: string, sourcePath: string, lang: any, durationSec: number) {
     if (plugin.notifiedSet.has(uniqueId)) return;
     plugin.notifiedSet.add(uniqueId);
     
-    let msg = diffDays === 0 ? lang.today : (diffDays < 0 ? lang.past(Math.abs(diffDays)) : lang.future(diffDays));
-    const eventTitle = text || lang.defaultEvent;
+    let msg = (config: any, diff: number, lg: any) => {
+        if (config && diff === 0) return lg.today;
+        if (config && diff === 1) return lg.tomorrow;
+        if (config && diff === -1) return lg.yesterday;
+        return diff < 0 ? lg.past(Math.abs(diff)) : lg.future(diff);
+    };
+    const message = msg(true, diffDays, lang);
+
     const activeFile = plugin.app.workspace.getActiveFile();
     const isActive = activeFile && activeFile.path === sourcePath;
 
     if (type === "modal") {
-        new CountdownAlertModal(plugin.app, eventTitle, msg, sourcePath, lang, isActive).open();
+        new CountdownAlertModal(plugin.app, text || lang.defaultEvent, message, sourcePath, lang, isActive).open();
     } else if (type === "notice") {
-        const durationMs = durationSec === 0 ? 0 : durationSec * 1000;
-        const notice = new Notice("", durationMs);
+        const notice = new Notice("", durationSec === 0 ? 0 : durationSec * 1000);
         notice.noticeEl.empty();
-        
         const wrapper = notice.noticeEl.createDiv({ cls: "daysleft-notice-container" });
-        wrapper.createDiv({ text: "Days left", cls: "daysleft-notice-subtitle" });
-        wrapper.createDiv({ text: lang.notifHeader, cls: "daysleft-notice-title" });
-        wrapper.createDiv({ text: eventTitle, cls: "daysleft-notice-event" });
-        wrapper.createDiv({ text: msg });
-        
+        wrapper.createDiv({ text: text || lang.defaultEvent, cls: "daysleft-notice-event" });
+        wrapper.createDiv({ text: message });
         if (!isActive) {
-            const link = wrapper.createDiv({ text: `🔗 ${lang.openNote}`, cls: "daysleft-notice-link" });
-            wrapper.addEventListener("click", (e: MouseEvent) => {
-                e.stopPropagation();
-                const newLeaf = e.ctrlKey || e.metaKey;
-                plugin.app.workspace.openLinkText(sourcePath, "", newLeaf);
-                notice.hide();
-            });
+            wrapper.onclick = () => plugin.app.workspace.openLinkText(sourcePath, "", true);
         }
     }
 }
 
 // ==========================================================
-// 3. WIDGETY I KOMPONENTY RENDERUJĄCE (LIVE RELOAD)
+// 3. PROCESORY I WIDGETY LIVE PREVIEW (CM6)
 // ==========================================================
-
-// Logika renderująca blok kodu (````daysleft`)
 class DaysLeftBlock extends MarkdownRenderChild {
     constructor(containerEl: HTMLElement, private source: string, private plugin: DaysLeftPlugin, private ctxPath: string) { super(containerEl); }
-    onload() {
-        this.plugin.activeBlocks.push(this);
-        this.render();
-    }
-    onunload() {
-        this.plugin.activeBlocks = this.plugin.activeBlocks.filter(b => b !== this);
-    }
+    onload() { this.plugin.activeBlocks.push(this); this.render(); }
+    onunload() { this.plugin.activeBlocks = this.plugin.activeBlocks.filter(b => b !== this); }
     render() {
         this.containerEl.empty();
-        const config = this.plugin.parseConfig(this.source);
-        const langCode = i18n[config.language] ? config.language : "en";
-        const lang = i18n[langCode];
-        const toDate = moment(config.to);
+        const conf = this.plugin.parseConfig(this.source);
+        const lang = i18n[conf.language] || i18n["en"];
         
-        if (!config.to || !toDate.isValid()) {
-            const errDiv = this.containerEl.createDiv();
-            errDiv.addClass("daysleft-block-container");
-            renderMissingDateError(errDiv, moment().add(7, 'days').format('YYYY-MM-DD'), false, lang);
+        const hasTo = conf.to && moment(conf.to).isValid();
+        const hasFrom = conf.from && moment(conf.from).isValid();
+
+        if (!hasTo && !hasFrom) {
+            renderMissingDateError(this.containerEl, false, lang);
             return;
         }
 
-        const diffDays = toDate.diff(moment().startOf('day'), 'days');
-        if (diffDays < 0 && config.hideOnPast) { this.containerEl.style.display = "none"; return; }
-        else { this.containerEl.style.display = ""; }
+        let diff = 0;
+        let targetForFinalDate = moment();
 
-        const container = this.containerEl.createDiv({ cls: "daysleft-block-container" });
-        if (config.text) container.createDiv({ text: config.text, cls: "daysleft-block-text" });
-
-        const absDays = Math.abs(diffDays);
-        let displayValue = (config.todayTomorrow && diffDays === 0) ? lang.today :
-                           (config.todayTomorrow && diffDays === 1) ? lang.tomorrow :
-                           (config.todayTomorrow && diffDays === -1) ? lang.yesterday :
-                           (config.showDaysText ? (diffDays < 0 ? lang.past(absDays) : lang.future(absDays)) : diffDays.toString());
-
-        const countEl = container.createDiv({ text: displayValue, cls: "daysleft-block-counter" });
-
-        const spotlightDays = parseInt(config.spotlightDays);
-        const isSpotlight = !isNaN(spotlightDays) && diffDays >= 0 && diffDays <= spotlightDays;
-
-        if (isSpotlight) {
-            countEl.style.color = config.spotlightColor;
-            if (config.spotlightBold) countEl.style.fontWeight = "bold";
-
-            if (config.spotlightAlert === "notice" || config.spotlightAlert === "modal") {
-                const uniqueId = `block-${this.ctxPath}-${config.to}-${config.text}-${diffDays}`;
-                let isActivelyEditing = false;
-                const activeView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
-                
-                if (activeView && activeView.file && activeView.file.path === this.ctxPath) {
-                    isActivelyEditing = true;
-                }
-
-                if (isActivelyEditing) {
-                    this.plugin.notifiedSet.add(uniqueId);
-                } else {
-                    triggerNotification(this.plugin, config.text, diffDays, config.spotlightAlert, uniqueId, this.ctxPath, lang, config.spotlightAlertDuration);
-                }
-            }
-        } else {
-            countEl.style.color = diffDays < 0 ? config.dayCounterColorPast : config.dayCounterColor;
+        if (hasTo && hasFrom) {
+            diff = moment(conf.to).startOf('day').diff(moment(conf.from).startOf('day'), 'days');
+            targetForFinalDate = moment(conf.to).startOf('day');
+        } else if (hasTo) {
+            diff = moment(conf.to).startOf('day').diff(moment().startOf('day'), 'days');
+            targetForFinalDate = moment(conf.to).startOf('day');
+        } else if (hasFrom) {
+            diff = moment().startOf('day').diff(moment(conf.from).startOf('day'), 'days');
+            targetForFinalDate = moment(conf.from).startOf('day');
         }
 
-        if (config.showFinalDate && config.to) {
-            const dateStr = toDate.locale(langCode === "uk" ? "uk" : (langCode === "zh" ? "zh-cn" : langCode)).format(config.finalDateFormat);
+        const isStaticOrDuration = hasFrom;
+
+        if (diff < 0 && conf.hideOnPast && !isStaticOrDuration) { 
+            this.containerEl.style.display = "none"; return; 
+        }
+        
+        const container = this.containerEl.createDiv({ cls: "daysleft-block-container" });
+        if (conf.text) container.createDiv({ text: conf.text, cls: "daysleft-block-text" });
+        
+        const absD = Math.abs(diff);
+        let disp = "";
+
+        if (isStaticOrDuration) {
+            disp = conf.showDaysText ? lang.future(absD) : absD.toString();
+        } else {
+            disp = (conf.todayTomorrow && diff === 0) ? lang.today : 
+                   (conf.todayTomorrow && diff === 1) ? lang.tomorrow : 
+                   (conf.todayTomorrow && diff === -1) ? lang.yesterday : 
+                   (conf.showDaysText ? (diff < 0 ? lang.past(absD) : lang.future(absD)) : diff.toString());
+        }
+
+        const cntEl = container.createDiv({ text: disp, cls: "daysleft-block-counter" });
+        
+        const isSpot = !isStaticOrDuration && diff >= 0 && diff <= conf.spotlightDays;
+        if (isSpot) {
+            cntEl.style.color = conf.spotlightColor;
+            if (conf.spotlightBold) cntEl.style.fontWeight = "bold";
+        } else {
+            cntEl.style.color = (diff < 0 && !isStaticOrDuration) ? conf.dayCounterColorPast : conf.dayCounterColor;
+        }
+
+        if (conf.showFinalDate) {
+            const dateStr = targetForFinalDate.locale(conf.language === "uk" ? "uk" : (conf.language === "zh" ? "zh-cn" : conf.language)).format(conf.finalDateFormat);
             container.createDiv({ text: dateStr.charAt(0).toUpperCase() + dateStr.slice(1), cls: "daysleft-block-date" });
         }
     }
 }
 
-// Logika renderująca znacznik inline w Reading View (Tryb Czytania)
 class DaysLeftInlineReading extends MarkdownRenderChild {
     constructor(containerEl: HTMLElement, private dateStr: string, private plugin: DaysLeftPlugin, private sourcePath: string) { super(containerEl); }
-    onload() {
-        this.plugin.activeInlines.push(this);
-        this.render();
-    }
-    onunload() {
-        this.plugin.activeInlines = this.plugin.activeInlines.filter(i => i !== this);
-    }
+    onload() { this.plugin.activeInlines.push(this); this.render(); }
+    onunload() { this.plugin.activeInlines = this.plugin.activeInlines.filter(i => i !== this); }
     render() {
         this.containerEl.empty();
-        const span = this.plugin.createInlineSpan(this.dateStr, this.sourcePath);
-        this.containerEl.appendChild(span);
+        this.containerEl.appendChild(this.plugin.createInlineSpan(this.dateStr, this.sourcePath));
     }
 }
 
-// Logika renderująca znacznik inline w Live Preview (Edytorze)
 class InlineCountdownWidget extends WidgetType {
-    constructor(private dateStr: string, private plugin: DaysLeftPlugin) { super(); }
-    
-    eq(other: InlineCountdownWidget) { return false; } 
-
-    toDOM(view: EditorView): HTMLElement {
-        const activeFile = this.plugin.app.workspace.getActiveFile();
-        return this.plugin.createInlineSpan(this.dateStr, activeFile ? activeFile.path : "Unknown");
+    constructor(private date: string, private plugin: DaysLeftPlugin) { super(); }
+    toDOM(view: EditorView) { 
+        const span = this.plugin.createInlineSpan(this.date, ""); 
+        span.style.cursor = "text";
+        span.addEventListener("mousedown", (e) => {
+            e.preventDefault(); 
+            const pos = view.posAtDOM(span);
+            if (pos !== null) {
+                view.dispatch({ selection: { anchor: pos + 4 } });
+                view.focus();
+            }
+        });
+        return span;
     }
 }
 
 export function buildInlineCountdownExtension(plugin: DaysLeftPlugin) {
     return ViewPlugin.fromClass(class {
         decorations: DecorationSet;
-        constructor(view: EditorView) { this.decorations = this.buildDecorations(view); }
-        update(update: ViewUpdate) { 
-            if (update.docChanged || update.viewportChanged || update.selectionSet || update.transactions.some(t => t.effects.some(e => e.is(pluginUpdateEffect)))) { 
-                this.decorations = this.buildDecorations(update.view); 
-            } 
-        }
-        buildDecorations(view: EditorView): DecorationSet {
+        constructor(view: EditorView) { this.decorations = this.build(view); }
+        update(update: ViewUpdate) { if (update.docChanged || update.viewportChanged || update.selectionSet) this.decorations = this.build(update.view); }
+        build(view: EditorView) {
             const builder = new RangeSetBuilder<Decoration>();
             const regex = /`dl:([^`]+)?`/g;
             for (let { from, to } of view.visibleRanges) {
                 const text = view.state.doc.sliceString(from, to);
                 let match;
                 while ((match = regex.exec(text)) !== null) {
+                    const dateStr = match[1] ? match[1].trim() : "";
+                    if (dateStr === "") continue;
+
                     const start = from + match.index;
                     const end = start + match[0].length;
+                    
                     let hasCursorInside = false;
-                    for (const range of view.state.selection.ranges) if (range.head >= start && range.head <= end) hasCursorInside = true;
-                    if (!hasCursorInside) builder.add(start, end, Decoration.replace({ widget: new InlineCountdownWidget(match[1] || "", plugin) }));
+                    for (const range of view.state.selection.ranges) {
+                        if (range.head >= start && range.head <= end) hasCursorInside = true;
+                    }
+                    
+                    if (!hasCursorInside) {
+                        builder.add(start, end, Decoration.replace({ widget: new InlineCountdownWidget(dateStr, plugin) }));
+                    }
                 }
             }
             return builder.finish();
@@ -274,11 +268,10 @@ export function buildInlineCountdownExtension(plugin: DaysLeftPlugin) {
 // ==========================================================
 export default class DaysLeftPlugin extends Plugin {
     settings: DaysLeftSettings;
-    notifiedSet: Set<string> = new Set(); 
-    lastCheckDate: string;
-    
+    notifiedSet: Set<string> = new Set();
     activeBlocks: DaysLeftBlock[] = [];
     activeInlines: DaysLeftInlineReading[] = [];
+    lastCheckDate: string;
 
     async onload() {
         await this.loadSettings();
@@ -292,115 +285,141 @@ export default class DaysLeftPlugin extends Plugin {
             if (this.lastCheckDate !== today) {
                 this.lastCheckDate = today;
                 this.notifiedSet.clear();
-                this.scanVaultForCountdowns();
+                this.scanVaultForCountdowns(); 
             }
         }, 60 * 1000));
 
         this.addCommand({
             id: 'insert-block',
             name: 'Insert countdown block',
-            editorCallback: (editor: Editor, view: MarkdownView) => {
-                const placeholder = "```daysleft\ntext: Event description\nto: YYYY-MM-DD\n```\n";
+            editorCallback: (editor: Editor) => {
+                const s = this.settings;
+                const lines = ["``" + "`daysleft"];
+                if (s.templateIncludeText) lines.push("text: ");
+                if (s.templateIncludeTo) lines.push("to: YYYY-MM-DD");
+                if (s.templateIncludeFrom) lines.push("from: YYYY-MM-DD");
+                if (s.templateIncludeLanguage) lines.push("language: ");
+                if (s.templateIncludeDayCounterColor) lines.push("dayCounterColor: ");
+                if (s.templateIncludeDayCounterColorPast) lines.push("dayCounterColorPast: ");
+                if (s.templateIncludeHideOnPast) lines.push("hideOnPast: ");
+                if (s.templateIncludeShowDaysText) lines.push("showDaysText: ");
+                if (s.templateIncludeTodayTomorrow) lines.push("todayTomorrow: ");
+                if (s.templateIncludeShowFinalDate) lines.push("showFinalDate: ");
+                if (s.templateIncludeFinalDateFormat) lines.push("finalDateFormat: ");
+                if (s.templateIncludeSpotlightDays) lines.push("spotlightDays: ");
+                if (s.templateIncludeSpotlightColor) lines.push("spotlightColor: ");
+                if (s.templateIncludeSpotlightBold) lines.push("spotlightBold: ");
+                if (s.templateIncludeSpotlightAlert) lines.push("spotlightAlert: ");
+                if (s.templateIncludeSpotlightAlertDuration) lines.push("spotlightAlertDuration: ");
+                lines.push("``" + "`");
+                
+                const placeholder = lines.join("\n") + "\n";
                 const cursor = editor.getCursor();
                 editor.replaceRange(placeholder, cursor);
-                editor.setSelection({ line: cursor.line + 2, ch: 4 }, { line: cursor.line + 2, ch: 14 });
+                
+                const toLineIndex = lines.findIndex(l => l.startsWith("to:"));
+                const fromLineIndex = lines.findIndex(l => l.startsWith("from:"));
+                
+                if (toLineIndex !== -1) {
+                    editor.setSelection({ line: cursor.line + toLineIndex, ch: 4 }, { line: cursor.line + toLineIndex, ch: 14 });
+                } else if (fromLineIndex !== -1) {
+                    editor.setSelection({ line: cursor.line + fromLineIndex, ch: 6 }, { line: cursor.line + fromLineIndex, ch: 16 });
+                }
             }
         });
 
-        this.addCommand({
-            id: 'insert-inline',
-            name: 'Insert inline countdown',
-            editorCallback: (editor: Editor, view: MarkdownView) => {
-                const placeholder = "`dl:YYYY-MM-DD`";
-                const cursor = editor.getCursor();
-                editor.replaceRange(placeholder, cursor);
-                editor.setSelection({ line: cursor.line, ch: cursor.ch + 4 }, { line: cursor.line, ch: cursor.ch + 14 });
-            }
-        });
-
+        this.registerMarkdownCodeBlockProcessor("daysleft", (source, el, ctx) => ctx.addChild(new DaysLeftBlock(el, source, this, ctx.sourcePath)));
         this.registerEditorExtension(buildInlineCountdownExtension(this));
-
-        this.registerMarkdownCodeBlockProcessor("daysleft", (source, el, ctx) => {
-            ctx.addChild(new DaysLeftBlock(el, source, this, ctx.sourcePath));
-        });
 
         this.registerMarkdownPostProcessor((el, ctx) => {
             const codeBlocks = Array.from(el.querySelectorAll("code"));
             for (const codeEl of codeBlocks) {
                 const text = codeEl.innerText.trim();
                 if (text.startsWith("dl:")) {
+                    const dateStr = text.substring(3).trim();
+                    if (dateStr === "") continue;
+                    
                     const span = document.createElement("span");
                     codeEl.replaceWith(span);
-                    const dateStr = text.substring(3).trim();
                     ctx.addChild(new DaysLeftInlineReading(span, dateStr, this, ctx.sourcePath));
                 }
             }
         });
     }
 
+    async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
+    async saveSettings() { await this.saveData(this.settings); this.refreshOpenViews(); }
+    refreshOpenViews() { this.activeBlocks.forEach(b => b.render()); this.activeInlines.forEach(i => i.render()); }
+
+    parseConfig(source: string): any {
+        const local: any = {};
+        source.split("\n").forEach(line => {
+            const idx = line.indexOf(":");
+            if (idx !== -1) {
+                const key = line.substring(0, idx).trim();
+                const val = line.substring(idx + 1).trim();
+                local[key] = val;
+            }
+        });
+
+        const getStr = (k: string, globalK: keyof DaysLeftSettings) => (local[k] !== undefined && local[k] !== "") ? local[k] : String(this.settings[globalK]);
+        const getBool = (k: string, globalK: keyof DaysLeftSettings) => {
+            if (local[k] !== undefined && local[k] !== "") return local[k].toLowerCase() === "true";
+            return Boolean(this.settings[globalK]);
+        };
+        const getNum = (k: string, globalK: keyof DaysLeftSettings) => {
+            if (local[k] !== undefined && local[k] !== "") return parseInt(local[k]);
+            return Number(this.settings[globalK]);
+        };
+
+        return {
+            language: getStr("language", "language"),
+            text: local["text"] || "", 
+            to: local["to"] || "",
+            from: local["from"] || "",
+            dayCounterColor: getStr("dayCounterColor", "dayCounterColor"),
+            dayCounterColorPast: getStr("dayCounterColorPast", "dayCounterColorPast"),
+            hideOnPast: getBool("hideOnPast", "hideOnPast"),
+            showDaysText: getBool("showDaysText", "showDaysText"),
+            todayTomorrow: getBool("todayTomorrow", "todayTomorrow"),
+            showFinalDate: getBool("showFinalDate", "showFinalDate"),
+            finalDateFormat: getStr("finalDateFormat", "finalDateFormat"),
+            spotlightDays: getNum("spotlightDays", "spotlightDays"),
+            spotlightColor: getStr("spotlightColor", "spotlightColor"),
+            spotlightBold: getBool("spotlightBold", "spotlightBold"),
+            spotlightAlert: getStr("spotlightAlert", "spotlightAlert"),
+            spotlightAlertDuration: getNum("spotlightAlertDuration", "spotlightAlertDuration")
+        };
+    }
+
     createInlineSpan(dateStr: string, sourcePath: string): HTMLElement {
         const span = document.createElement("span");
         span.addClass("daysleft-inline");
-        
         const config = this.parseConfig(`to: ${dateStr.trim()}`);
-        const langCode = i18n[config.language] ? config.language : "en";
-        const lang = i18n[langCode];
+        const lang = i18n[config.language] || i18n["en"];
         const toDate = moment(dateStr.trim());
         
         if (!dateStr || !toDate.isValid()) {
-            renderMissingDateError(span, moment().add(7, 'days').format('YYYY-MM-DD'), true, lang);
+            renderMissingDateError(span, true, lang);
             return span;
         }
 
         const diffDays = toDate.diff(moment().startOf('day'), 'days');
         if (diffDays < 0 && config.hideOnPast) { span.style.display = "none"; return span; }
-        else { span.style.display = ""; }
-
+        
         const absDays = Math.abs(diffDays);
-        span.textContent = (config.todayTomorrow && diffDays === 0) ? lang.today.toLowerCase() :
-                           (config.todayTomorrow && diffDays === 1) ? lang.tomorrow.toLowerCase() :
-                           (config.todayTomorrow && diffDays === -1) ? lang.yesterday.toLowerCase() :
+        span.textContent = (config.todayTomorrow && diffDays === 0) ? lang.today.toLowerCase() : 
+                           (config.todayTomorrow && diffDays === 1) ? lang.tomorrow.toLowerCase() : 
+                           (config.todayTomorrow && diffDays === -1) ? lang.yesterday.toLowerCase() : 
                            (config.showDaysText ? (diffDays < 0 ? lang.past(absDays) : lang.future(absDays)) : diffDays.toString());
-
-        const spotlightDays = parseInt(config.spotlightDays);
-        const isSpotlight = !isNaN(spotlightDays) && diffDays >= 0 && diffDays <= spotlightDays;
-
-        if (isSpotlight) {
+        
+        if (diffDays >= 0 && diffDays <= config.spotlightDays) {
             span.style.color = config.spotlightColor;
             if (config.spotlightBold) span.style.fontWeight = "bold";
-
-            if (config.spotlightAlert === "notice" || config.spotlightAlert === "modal") {
-                const uniqueId = `inline-${sourcePath}-${config.to}-${diffDays}`;
-                if (this.app.workspace.getActiveFile()?.path === sourcePath) {
-                    this.notifiedSet.add(uniqueId);
-                } else {
-                    triggerNotification(this, "", diffDays, config.spotlightAlert, uniqueId, sourcePath, lang, config.spotlightAlertDuration);
-                }
-            }
-        } else {
-            span.style.color = diffDays < 0 ? config.dayCounterColorPast : config.dayCounterColor;
-            span.style.fontWeight = "normal"; 
+        } else { 
+            span.style.color = diffDays < 0 ? config.dayCounterColorPast : config.dayCounterColor; 
         }
         return span;
-    }
-
-    parseConfig(source: string): any {
-        const localParams: Record<string, string> = {};
-        source.split("\n").forEach(line => {
-            const parts = line.split(":");
-            if (parts.length >= 2) localParams[parts[0].trim()] = parts.slice(1).join(":").trim();
-        });
-        const getVal = (key: keyof DaysLeftSettings): any => (localParams[key] !== undefined && localParams[key] !== "") ? localParams[key] : this.settings[key];
-
-        return {
-            language: String(getVal("language")), text: localParams["text"] || "", to: localParams["to"] || "", from: localParams["from"] || "{today}",
-            dayCounterColor: String(getVal("dayCounterColor")), dayCounterColorPast: String(getVal("dayCounterColorPast")),
-            hideOnPast: String(getVal("hideOnPast")).toLowerCase() === "true", showDaysText: String(getVal("showDaysText")).toLowerCase() === "true",
-            todayTomorrow: String(getVal("todayTomorrow")).toLowerCase() === "true", showFinalDate: String(getVal("showFinalDate")).toLowerCase() === "true",
-            finalDateFormat: String(getVal("finalDateFormat")), spotlightDays: parseInt(String(getVal("spotlightDays"))),
-            spotlightColor: String(getVal("spotlightColor")), spotlightBold: String(getVal("spotlightBold")).toLowerCase() === "true",
-            spotlightAlert: String(getVal("spotlightAlert")).toLowerCase(), spotlightAlertDuration: parseInt(String(getVal("spotlightAlertDuration"))),
-        };
     }
 
     async scanVaultForCountdowns() {
@@ -410,201 +429,294 @@ export default class DaysLeftPlugin extends Plugin {
             const blockRegex = /```daysleft\n([\s\S]*?)```/g;
             let match;
             while ((match = blockRegex.exec(content)) !== null) this.checkAndTriggerFromScan(this.parseConfig(match[1]), file.path, "block");
-            
             const inlineRegex = /`dl:([^`]+)?`/g;
-            while ((match = inlineRegex.exec(content)) !== null) this.checkAndTriggerFromScan(this.parseConfig(`to: ${match[1] || ""}`), file.path, "inline");
+            while ((match = inlineRegex.exec(content)) !== null) {
+                const dateStr = match[1] ? match[1].trim() : "";
+                if (dateStr !== "") this.checkAndTriggerFromScan(this.parseConfig(`to: ${dateStr}`), file.path, "inline");
+            }
         }
     }
 
     checkAndTriggerFromScan(config: any, sourcePath: string, type: string) {
+        if (config.from) return; 
         const toDate = moment(config.to);
         if (!config.to || !toDate.isValid()) return;
-        const diffDays = toDate.diff(config.from === "{today}" ? moment().startOf('day') : moment(config.from), 'days');
+        const diffDays = toDate.diff(moment().startOf('day'), 'days');
         if (diffDays < 0 && config.hideOnPast) return;
         
-        if (!isNaN(parseInt(config.spotlightDays)) && diffDays >= 0 && diffDays <= parseInt(config.spotlightDays) && (config.spotlightAlert === "notice" || config.spotlightAlert === "modal")) {
+        if (!isNaN(config.spotlightDays) && diffDays >= 0 && diffDays <= config.spotlightDays && config.spotlightAlert !== "none") {
             const langCode = i18n[config.language] ? config.language : "en";
             triggerNotification(this, config.text, diffDays, config.spotlightAlert, `${type}-${sourcePath}-${config.to}-${config.text}-${diffDays}`, sourcePath, i18n[langCode], config.spotlightAlertDuration);
         }
     }
-
-    refreshOpenViews() {
-        this.activeBlocks.forEach(b => b.render());
-        this.activeInlines.forEach(i => i.render());
-        this.app.workspace.iterateAllLeaves((leaf) => {
-            if (leaf.view instanceof MarkdownView) {
-                const editor = leaf.view.editor as any;
-                if (editor.cm) {
-                    editor.cm.dispatch({ effects: pluginUpdateEffect.of(null) });
-                }
-            }
-        });
-    }
-
-    async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
-    async saveSettings() { 
-        await this.saveData(this.settings);
-        this.refreshOpenViews(); 
-    }
 }
 
 // ==========================================================
-// 5. MENU USTAWIEŃ 
+// 5. INTERFEJS USTAWIEN (UI BEZ SKOKÓW DOM)
 // ==========================================================
 class DaysLeftSettingTab extends PluginSettingTab {
     plugin: DaysLeftPlugin;
+    updateExampleFn: (() => void) | null = null;
+
     constructor(app: App, plugin: DaysLeftPlugin) { super(app, plugin); this.plugin = plugin; }
 
     display(): void {
         const {containerEl} = this;
         containerEl.empty();
         
-        const langCode = settingsI18n[this.plugin.settings.language] ? this.plugin.settings.language : "en";
-        const t = settingsI18n[langCode] || settingsI18n["en"];
+        const uiLangCode = this.plugin.settings.uiLanguage || "en";
+        const t = settingsI18n[uiLangCode] || settingsI18n["en"];
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .dl-header-box { margin-bottom: 25px; border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 15px; }
+            .dl-title-header { margin: 0; color: var(--text-accent); font-weight: 800; font-size: 2.2em; }
+            .dl-table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden; table-layout: fixed; }
+            .dl-table th { background: var(--background-secondary-alt); padding: 12px; text-align: left; font-size: 0.8em; text-transform: uppercase; border-bottom: 2px solid var(--background-modifier-border); color: var(--text-muted); font-weight: bold; }
+            .dl-table td { padding: 12px; border-bottom: 1px solid var(--background-modifier-border); vertical-align: middle; }
+            .dl-table tr:hover { background: var(--background-primary-alt); }
+            .dl-param-name { font-weight: bold; color: var(--text-normal); display: block; font-size: 0.95em; margin-bottom: 2px; }
+            .dl-param-desc { font-size: 0.82em; color: var(--text-muted); line-height: 1.4; display: block; margin-bottom: 6px; }
+            .dl-preview-code { font-family: var(--font-monospace); font-size: 0.8em; background: var(--background-secondary); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--background-modifier-border); color: var(--text-accent); user-select: all; display: inline-block; margin-bottom: 2px; }
+            .dl-center { text-align: center; display: flex; justify-content: center; align-items: center; height: 100%; }
+            .dl-pre-box { background: var(--background-secondary); padding: 15px; border-radius: 8px; border: 1px solid var(--background-modifier-border); margin: 15px 0; border-left: 4px solid var(--text-success); min-height: 290px; display: flex; flex-direction: column; }
+            .dl-example { font-size: 0.82em; color: var(--text-muted); margin-top: 5px; display: block; font-style: italic; }
+        `;
+        document.head.appendChild(style);
+
+        const headerBox = containerEl.createDiv({ cls: "dl-header-box" });
+        headerBox.createEl('h1', { text: "Days Left", cls: "dl-title-header" });
+
+        containerEl.createEl('h2', {text: t.langTitle});
+        new Setting(containerEl)
+            .setName(t.uiLangName)
+            .setDesc(t.uiLangDesc)
+            .addDropdown(d => d
+                .addOption('en', 'English').addOption('pl', 'Polski').addOption('es', 'Español').addOption('fr', 'Français')
+                .addOption('de', 'Deutsch').addOption('ja', '日本語').addOption('uk', 'Українська').addOption('zh', '中文')
+                .setValue(this.plugin.settings.uiLanguage)
+                .onChange(async v => { this.plugin.settings.uiLanguage = v; await this.plugin.saveSettings(); this.display(); })
+            );
+
+        containerEl.createEl('hr');
+
+        containerEl.createEl('h2', {text: t.instTitle});
         
-        const makeSelectable = (setting: Setting) => {
-            setting.nameEl.style.userSelect = "text"; setting.nameEl.style.webkitUserSelect = "text";
-            setting.descEl.style.userSelect = "text"; setting.descEl.style.webkitUserSelect = "text";
-            return setting;
+        const info = containerEl.createDiv({ cls: "dl-pre-box" });
+        info.createEl("p", { text: t.instTip, style: "margin: 0 0 10px 0; font-size: 0.85em;" });
+        const previewEl = info.createEl("pre", { style: "margin: 0; color: var(--text-success); flex-grow: 1;" });
+
+        const refreshPreview = () => {
+            const s = this.plugin.settings;
+            const previewLines = ["```daysleft"];
+            if (s.templateIncludeText) previewLines.push("text: ");
+            if (s.templateIncludeTo) previewLines.push(`to: YYYY-MM-DD`);
+            if (s.templateIncludeFrom) previewLines.push(`from: YYYY-MM-DD`);
+            if (s.templateIncludeLanguage) previewLines.push("language: ");
+            if (s.templateIncludeDayCounterColor) previewLines.push("dayCounterColor: ");
+            if (s.templateIncludeDayCounterColorPast) previewLines.push("dayCounterColorPast: ");
+            if (s.templateIncludeHideOnPast) previewLines.push("hideOnPast: ");
+            if (s.templateIncludeShowDaysText) previewLines.push("showDaysText: ");
+            if (s.templateIncludeTodayTomorrow) previewLines.push("todayTomorrow: ");
+            if (s.templateIncludeShowFinalDate) previewLines.push("showFinalDate: ");
+            if (s.templateIncludeFinalDateFormat) previewLines.push("finalDateFormat: ");
+            if (s.templateIncludeSpotlightDays) previewLines.push("spotlightDays: ");
+            if (s.templateIncludeSpotlightColor) previewLines.push("spotlightColor: ");
+            if (s.templateIncludeSpotlightBold) previewLines.push("spotlightBold: ");
+            if (s.templateIncludeSpotlightAlert) previewLines.push("spotlightAlert: ");
+            if (s.templateIncludeSpotlightAlertDuration) previewLines.push("spotlightAlertDuration: ");
+            previewLines.push("```");
+            previewEl.innerText = previewLines.join("\n");
         };
+        refreshPreview();
 
-        const createDesc = (paramName: string, paramValue: any, descContent: string | DocumentFragment) => {
-            const frag = document.createDocumentFragment();
-            const descContainer = frag.createDiv({ style: "margin-bottom: 6px; opacity: 0.9;" });
-            if (typeof descContent === "string") descContainer.innerText = descContent;
-            else descContainer.appendChild(descContent);
+        new Setting(containerEl).setName(t.hotkeyBtn).addButton(b => b.setButtonText("⚙️ Hotkeys").onClick(() => {
+            const tab = (this.app as any).setting;
+            tab.openTabById('hotkeys');
+            if (tab.activeTab?.searchComponent) {
+                tab.activeTab.searchComponent.setValue("Days left");
+                tab.activeTab.updateHotkeyVisibility();
+            }
+        }));
 
-            const paramContainer = frag.createDiv({ style: "font-size: 0.9em; color: var(--text-muted);" });
-            paramContainer.appendText("Parameter: ");
-            paramContainer.createEl("code", { text: `${paramName}: ${paramValue}` });
-            return frag;
-        };
+        containerEl.createEl('hr');
 
-        const bindSetting = (container: HTMLElement, name: string, paramName: keyof DaysLeftSettings, descText: string, type: 'text' | 'toggle' | 'dropdown' | 'color', options?: Record<string, string>) => {
-            const s = new Setting(container).setName(name);
-            makeSelectable(s);
+        const addRow = (parent: HTMLElement, name: string, desc: string, key: keyof DaysLeftSettings | 'text' | 'to' | 'from', type: string, tplKey?: keyof DaysLeftSettings, options?: any) => {
+            const tr = parent.createEl('tr');
             
-			const getDescContent = () => {
-                let content: string | DocumentFragment = descText;
-                if (paramName === 'finalDateFormat') {
-                    const frag = document.createDocumentFragment();
-                    frag.appendText(descText + " ");
-                    frag.createEl("a", { 
-                        text: t.momentLinkText || "Moment.js docs", 
-                        href: "https://momentjs.com/docs/#/displaying/format/",
-                        attr: { target: "_blank" } // Wymusza otwarcie w domyślnej przeglądarce internetowej
-                    });
-                    content = frag;
-                }
-                return content;
-            };
-			
-            s.setDesc(createDesc(paramName, this.plugin.settings[paramName], getDescContent()));
+            const td1 = tr.createEl('td', { style: "width: 50%; vertical-align: top;" });
+            td1.createSpan({ text: name, cls: "dl-param-name" });
+            
+            const descSpan = td1.createSpan({ cls: "dl-param-desc" });
+            if (desc.includes("{{link}}")) {
+                const parts = desc.split("{{link}}");
+                descSpan.appendText(parts[0]);
+                descSpan.createEl('a', { text: "Moment.js", href: "https://momentjs.com/docs/#/displaying/format/", attr: { target: "_blank" } });
+                descSpan.appendText(parts[1]);
+            } else {
+                descSpan.innerText = desc;
+            }
+            
+            const codePreview = td1.createEl('code', { cls: "dl-preview-code" });
+            const exampleDiv = td1.createSpan({ cls: "dl-example", style: "display: none;" });
 
-            if (type === 'text') {
-                s.addText(textEl => textEl.setValue(String(this.plugin.settings[paramName])).onChange(async v => {
-                    (this.plugin.settings as any)[paramName] = paramName === 'spotlightAlertDuration' ? (isNaN(parseInt(v)) ? 30 : parseInt(v)) : v;
-                    await this.plugin.saveSettings();
-                    s.setDesc(createDesc(paramName, (this.plugin.settings as any)[paramName], getDescContent()));
-                }));
-            } else if (type === 'color') {
-                let textComponent: TextComponent;
-                s.addText(textEl => {
-                    textComponent = textEl;
-                    textEl.setValue(String(this.plugin.settings[paramName])).onChange(async v => {
-                        (this.plugin.settings as any)[paramName] = v; await this.plugin.saveSettings();
-                        s.setDesc(createDesc(paramName, v, getDescContent()));
-                    });
+            const updateRowVisuals = (val: any) => {
+                if (type === 'none') {
+                    codePreview.innerText = `${key}: `;
+                    exampleDiv.style.display = "none";
+                } else {
+                    codePreview.innerText = `${key}: ${val}`;
+                    if (key === 'finalDateFormat') {
+                        exampleDiv.style.display = "block";
+                        const egStr = t.eg || "e.g.";
+                        let l = this.plugin.settings.language;
+                        if(l === 'uk') l = 'uk';
+                        else if (l === 'zh') l = 'zh-cn';
+                        const exampleDate = moment("2025-10-08").locale(l).format(val || "YYYY-MM-DD");
+                        exampleDiv.innerText = `${egStr} ${exampleDate}`;
+                        this.updateExampleFn = () => updateRowVisuals(val); 
+                    } else {
+                        exampleDiv.style.display = "none";
+                    }
+                }
+                refreshPreview();
+            };
+            updateRowVisuals(type === 'none' ? "" : this.plugin.settings[key as keyof DaysLeftSettings]);
+
+            const td2 = tr.createEl('td', { style: "width: 35%; vertical-align: top;" });
+            
+            if (type === 'none') {
+                td2.createSpan({ text: "-" });
+            } else if (type === 'text') {
+                const input = new TextComponent(td2).setValue(String(this.plugin.settings[key as keyof DaysLeftSettings])).onChange(async v => {
+                    (this.plugin.settings as any)[key] = v; 
+                    await this.plugin.saveSettings(); 
+                    updateRowVisuals(v);
                 });
-                s.addColorPicker(colorPicker => colorPicker.setValue(String(this.plugin.settings[paramName])).onChange(async v => {
-                    (this.plugin.settings as any)[paramName] = v; await this.plugin.saveSettings();
-                    s.setDesc(createDesc(paramName, v, getDescContent()));
-                    textComponent.setValue(v);
-                }));
+                input.inputEl.style.width = "100%";
+            } else if (type === 'color') {
+                const wrapper = td2.createDiv({ style: "display: flex; gap: 8px; align-items: center;" });
+                const input = new TextComponent(wrapper).setValue(String(this.plugin.settings[key as keyof DaysLeftSettings])).onChange(async v => {
+                    (this.plugin.settings as any)[key] = v; 
+                    await this.plugin.saveSettings(); 
+                    if (/^#[0-9A-F]{6}$/i.test(v)) cp.value = v; 
+                    updateRowVisuals(v);
+                });
+                input.inputEl.style.width = "100%";
+                
+                const cp = wrapper.createEl('input', { type: 'color' });
+                const initVal = String(this.plugin.settings[key as keyof DaysLeftSettings]);
+                if (/^#[0-9A-F]{6}$/i.test(initVal)) cp.value = initVal;
+                else cp.value = "#000000"; 
+                
+                cp.onchange = async () => { 
+                    input.setValue(cp.value);
+                    (this.plugin.settings as any)[key] = cp.value; 
+                    await this.plugin.saveSettings(); 
+                    updateRowVisuals(cp.value);
+                };
             } else if (type === 'toggle') {
-                s.addToggle(toggleEl => toggleEl.setValue(Boolean(this.plugin.settings[paramName])).onChange(async v => {
-                    (this.plugin.settings as any)[paramName] = v; await this.plugin.saveSettings(); s.setDesc(createDesc(paramName, v, getDescContent()));
-                }));
-            } else if (type === 'dropdown' && options) {
-                s.addDropdown(d => {
-                    for (const [key, val] of Object.entries(options)) d.addOption(key, val);
-                    d.setValue(String(this.plugin.settings[paramName])).onChange(async v => {
-                        (this.plugin.settings as any)[paramName] = v; await this.plugin.saveSettings(); s.setDesc(createDesc(paramName, v, getDescContent()));
-                    });
+                new ToggleComponent(td2).setValue(Boolean(this.plugin.settings[key as keyof DaysLeftSettings])).onChange(async v => {
+                    (this.plugin.settings as any)[key] = v; 
+                    await this.plugin.saveSettings(); 
+                    updateRowVisuals(v);
+                });
+            } else if (type === 'dropdown') {
+                const sel = td2.createEl('select', { cls: "dropdown" });
+                Object.entries(options).forEach(([k,v]) => sel.createEl('option', { value: k, text: String(v) }));
+                sel.value = String(this.plugin.settings[key as keyof DaysLeftSettings]);
+                sel.onchange = async () => { 
+                    (this.plugin.settings as any)[key] = sel.value; 
+                    await this.plugin.saveSettings(); 
+                    updateRowVisuals(sel.value);
+                    if (key === 'language' && this.updateExampleFn) this.updateExampleFn();
+                };
+            }
+
+            const td3 = tr.createEl('td', { style: "width: 15%; vertical-align: top;" });
+            const centerDiv = td3.createDiv({ cls: "dl-center" });
+            if (tplKey) {
+                new ToggleComponent(centerDiv).setValue(Boolean(this.plugin.settings[tplKey])).onChange(async v => {
+                    (this.plugin.settings as any)[tplKey] = v; 
+                    await this.plugin.saveSettings(); 
+                    refreshPreview();
+                });
+            } else if (key === 'text') { 
+                new ToggleComponent(centerDiv).setValue(Boolean(this.plugin.settings.templateIncludeText)).onChange(async v => {
+                    this.plugin.settings.templateIncludeText = v; 
+                    await this.plugin.saveSettings(); 
+                    refreshPreview();
+                });
+            } else if (key === 'to') { 
+                new ToggleComponent(centerDiv).setValue(Boolean(this.plugin.settings.templateIncludeTo)).onChange(async v => {
+                    this.plugin.settings.templateIncludeTo = v; 
+                    await this.plugin.saveSettings(); 
+                    refreshPreview();
+                });
+            } else if (key === 'from') { 
+                new ToggleComponent(centerDiv).setValue(Boolean(this.plugin.settings.templateIncludeFrom)).onChange(async v => {
+                    this.plugin.settings.templateIncludeFrom = v; 
+                    await this.plugin.saveSettings(); 
+                    refreshPreview();
                 });
             }
         };
 
-        containerEl.createEl('h2', {text: t.langTitle});
-        const langSetting = new Setting(containerEl).setName(t.langName);
-        makeSelectable(langSetting);
-        langSetting.setDesc(createDesc("language", this.plugin.settings.language, t.langDesc));
-        langSetting.addDropdown(d => d
-            .addOption('en', 'English (en)').addOption('pl', 'Polski (pl)')
-            .addOption('es', 'Español (es)').addOption('fr', 'Français (fr)')
-            .addOption('de', 'Deutsch (de)').addOption('ja', '日本語 (ja)')
-            .addOption('uk', 'Українська (uk)').addOption('zh', '中文 (zh)')
-            .setValue(this.plugin.settings.language)
-            .onChange(async v => { this.plugin.settings.language = v; await this.plugin.saveSettings(); this.display(); })
-        );
-
-        containerEl.createEl('h2', {text: t.instTitle});
-        new Setting(containerEl)
-            .setName(t.hotkeyBtn)
-            .setDesc("Open hotkeys configuration for Days left commands.")
-            .addButton(btn => btn
-                .setButtonText("⚙️ Hotkeys")
-                .onClick(() => {
-                    try {
-                        const settingTab = (this.app as any).setting;
-                        settingTab.openTabById('hotkeys');
-                        const tab = settingTab.activeTab;
-                        if (tab && tab.searchComponent) {
-                            tab.searchComponent.setValue("Days left");
-                            tab.updateHotkeyVisibility();
-                        }
-                    } catch (e) {
-                        new Notice("Open Settings and navigate to Hotkeys, then search for 'Days left'.");
-                    }
-                })
-            );
-
-        const info = containerEl.createDiv({ cls: "daysleft-settings-info" });
-        info.createEl("p", { text: t.instTip });
-        info.createEl("pre", { text: "```daysleft\ntext: Upcoming trip\nto: 2026-12-24\n```", cls: "daysleft-settings-pre" });
-        info.createEl("pre", { text: "`dl:2026-12-24`", cls: "daysleft-settings-pre" });
-
         containerEl.createEl('h2', {text: t.globTitle});
-        bindSetting(containerEl, t.globDefColor, 'dayCounterColor', t.globDefColorDesc, 'color');
-        bindSetting(containerEl, t.globPastColor, 'dayCounterColorPast', t.globPastColorDesc, 'color');
-        bindSetting(containerEl, t.globHideOnPast, 'hideOnPast', t.globHideOnPastDesc, 'toggle');
-        bindSetting(containerEl, t.globShowDaysText, 'showDaysText', t.globShowDaysTextDesc, 'toggle');
-        bindSetting(containerEl, t.globToday, 'todayTomorrow', t.globTodayDesc, 'toggle');
-        bindSetting(containerEl, t.globShowFinal, 'showFinalDate', t.globShowFinalDesc, 'toggle');
-        bindSetting(containerEl, t.globFormat, 'finalDateFormat', t.globFormatDesc, 'text');
+        const tableG = containerEl.createEl('table', { cls: "dl-table" });
+        const theadG = tableG.createEl('thead');
+        const hrG = theadG.createEl('tr');
+        hrG.createEl('th', { text: t.tplHeaderParam });
+        hrG.createEl('th', { text: t.tplHeaderValue });
+        hrG.createEl('th', { text: t.tplHeaderShortcut, style: "text-align: center;" });
+        const tbodyG = tableG.createEl('tbody');
+        
+        addRow(tbodyG, t.globDefText, t.globDefTextDesc, 'text' as any, 'none', 'templateIncludeText');
+        addRow(tbodyG, t.globTo, t.globToDesc, 'to' as any, 'none', 'templateIncludeTo');
+        addRow(tbodyG, t.globFrom, t.globFromDesc, 'from' as any, 'none', 'templateIncludeFrom');
+        addRow(tbodyG, t.langName, t.langDesc, 'language', 'dropdown', 'templateIncludeLanguage', {en:'English (en)', pl:'Polski (pl)', es:'Español (es)', fr:'Français (fr)', de:'Deutsch (de)', ja:'日本語 (ja)', uk:'Українська (uk)', zh:'中文 (zh)'});
+        addRow(tbodyG, t.globDefColor, t.globDefColorDesc, 'dayCounterColor', 'color', 'templateIncludeDayCounterColor');
+        addRow(tbodyG, t.globPastColor, t.globPastColorDesc, 'dayCounterColorPast', 'color', 'templateIncludeDayCounterColorPast');
+        addRow(tbodyG, t.globHideOnPast, t.globHideOnPastDesc, 'hideOnPast', 'toggle', 'templateIncludeHideOnPast');
+        addRow(tbodyG, t.globShowDaysText, t.globShowDaysTextDesc, 'showDaysText', 'toggle', 'templateIncludeShowDaysText');
+        addRow(tbodyG, t.globToday, t.globTodayDesc, 'todayTomorrow', 'toggle', 'templateIncludeTodayTomorrow');
+        addRow(tbodyG, t.globShowFinal, t.globShowFinalDesc, 'showFinalDate', 'toggle', 'templateIncludeShowFinalDate');
+        addRow(tbodyG, t.globFormat, t.globFormatDesc, 'finalDateFormat', 'text', 'templateIncludeFinalDateFormat');
 
+        containerEl.createEl('hr');
         containerEl.createEl('h2', {text: t.spotTitle});
-        bindSetting(containerEl, t.spotDays, 'spotlightDays', t.spotDaysDesc, 'text');
-        bindSetting(containerEl, t.spotColor, 'spotlightColor', t.spotColorDesc, 'color');
-        bindSetting(containerEl, t.spotBold, 'spotlightBold', t.spotBoldDesc, 'toggle');
+        const tableS = containerEl.createEl('table', { cls: "dl-table", style: "margin-top: 0;" });
+        const tbodyS = tableS.createEl('tbody');
+        addRow(tbodyS, t.spotDays, t.spotDaysDesc, 'spotlightDays', 'text', 'templateIncludeSpotlightDays');
+        addRow(tbodyS, t.spotColor, t.spotColorDesc, 'spotlightColor', 'color', 'templateIncludeSpotlightColor');
+        addRow(tbodyS, t.spotBold, t.spotBoldDesc, 'spotlightBold', 'toggle', 'templateIncludeSpotlightBold');
 
+        containerEl.createEl('hr');
         containerEl.createEl('h2', {text: t.alertTitle});
-        bindSetting(containerEl, t.alertType, 'spotlightAlert', t.alertTypeDesc, 'dropdown', {'none': t.alertNone, 'notice': t.alertNotice, 'modal': t.alertModal});
-        bindSetting(containerEl, t.alertDuration, 'spotlightAlertDuration', t.alertDurationDesc, 'text');
+        const tableA = containerEl.createEl('table', { cls: "dl-table", style: "margin-top: 0;" });
+        const tbodyA = tableA.createEl('tbody');
+        addRow(tbodyA, t.alertType, t.alertTypeDesc, 'spotlightAlert', 'dropdown', 'templateIncludeSpotlightAlert', {none: 'None', notice: 'Notice', modal: 'Modal'});
+        addRow(tbodyA, t.alertDuration, t.alertDurationDesc, 'spotlightAlertDuration', 'text', 'templateIncludeSpotlightAlertDuration');
 
-        containerEl.createEl('h2', {text: t.resetTitle});
-        new Setting(containerEl)
-            .setName(t.resetBtn)
-            .addButton(btn => btn
-                .setButtonText(t.resetBtn)
-                .setWarning()
-                .onClick(() => {
-                    new ResetConfirmModal(this.app, t, async () => {
-                        this.plugin.settings = Object.assign({}, DEFAULT_SETTINGS);
-                        await this.plugin.saveSettings();
-                        this.display();
-                    }).open();
-                })
-            );
+        containerEl.createEl('hr');
+
+        const footer = containerEl.createDiv({ style: "display: flex; justify-content: space-between; align-items: center; margin-top: 30px;" });
+        new Setting(footer).setName(t.resetTitle).addButton(b => b.setButtonText(t.resetBtn).setWarning().onClick(() => {
+            new ResetConfirmModal(this.app, t, async () => {
+                this.plugin.settings = Object.assign({}, DEFAULT_SETTINGS);
+                await this.plugin.saveSettings();
+                this.display(); 
+            }).open();
+        }));
+
+        containerEl.createEl('hr');
+
+        containerEl.createEl('h2', {text: t.supportTitle, style: "margin-top: 30px;"});
+        const coffeeBox = containerEl.createDiv({ style: "text-align: center; margin-top: 25px; padding: 15px;" });
+        coffeeBox.createEl("p", { text: t.supportDesc, style: "font-size: 0.9em; margin-bottom: 15px;" });
+        coffeeBox.createEl("p", { text: "made with ❤ by creesee", style: "font-style: italic; color: var(--text-muted); font-size: 0.9em; margin-bottom: 10px; margin-top: 0;" });
+        const coffeeBtn = coffeeBox.createEl("button", { text: t.supportBtn });
+        coffeeBtn.style.cssText = "background: #FFDD00; color: #000; font-weight: bold; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em;";
+        coffeeBtn.onclick = () => window.open("https://buycoffee.to/creesee", "_blank");
     }
 }
