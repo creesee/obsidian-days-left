@@ -1,33 +1,41 @@
-# ⏳ Days Left (Obsidian Plugin)
+# ⏳ Days Left
 
 **Days Left** is a highly customizable countdown and count-up timer for Obsidian. Keep track of upcoming deadlines, exciting future events, or see how many days have passed since important milestones—right inside your notes.
 
 With its smart **Spotlight mode** and proactive alerts, your notes become dynamic dashboards that actively remind you of what matters most.
 
+<img width="698" height="118" alt="days left obsidian plugin preview" src="https://github.com/user-attachments/assets/c94a3574-c873-4ec7-a9b4-9917e0db12c2" />
+
 ---
 
-## 💡 Why use "Days left"?
+## 💡 Why use "Days Left"?
 Static dates in notes easily get lost. You write "Project due on 2026-10-15", but unless you check it daily, it sneaks up on you. **Days Left** solves this by:
 1. **Making time visible:** See exactly how many days remain (e.g., "5 days left") or how much time has passed (e.g., "14 days ago").
 2. **Highlighting urgency:** The **Spotlight mode** automatically changes the color and font weight of the counter when a deadline approaches.
 3. **Proactive reminders:** Get smart, non-intrusive notifications when an event enters the critical "Spotlight" zone, even if the note is closed.
 
+
 ---
 
 ## ✨ Key features
 - **Two display modes:** Beautiful, centered code blocks for major events, and subtle inline tags to embed counters directly into sentences.
+- **Dynamic & Static tracking:**
+- Count down to a future date (`to:`).
+  - Count days elapsed since a past date (`to:`).
+  - Calculate the exact duration between two dates (`from:` and `to:`).
+  - Track an ongoing streak from a specific date until today (`from:`).
 - **Spotlight mode:** Set a threshold (e.g., 3 days). When an event is within this range, the counter visually transforms to grab your attention.
-- **Smart notifications:** Choose between a discrete popup (Notice) or a full-screen alert (Modal) when a deadline hits the Spotlight zone. *Smart Engine prevents spam while you are actively typing a date!*
+- **Smart notifications:** Choose between a discrete popup (Notice) or a full-screen alert (Modal) when a deadline hits the Spotlight zone.
 - **Live refresh:** Any changes made in the settings immediately update all visible counters in real-time.
 - **Multi-language support:** Output text automatically adapts to your preferred language (English, Polish, Spanish, French, German, Japanese, Ukrainian, Chinese).
-- **Customizable aesthetics:** Control colors, formats, text variations ("Today/Tomorrow" vs. "0/1 days"), and visibility of past events.
+- **Customizable aesthetics:** Control colors, formats, text variations ("Yesterday/Today/Tomorrow" vs. "-1/0/1 day"), and visibility of past events.
 - **Global & local settings:** Define your default styles in the plugin settings, but override them for specific events right in the note!
 
 ---
 
 ## 🚀 How to use
 
-You can insert counters manually or use the built-in Obsidian commands (`Ctrl/Cmd + P` -> *Insert countdown block* or *Insert inline countdown*) to generate them instantly.
+You can insert counters manually or use the built-in Obsidian commands (`Ctrl/Cmd + P` -> *Insert countdown block*) to generate it instantly.
 
 ### 1. Code blocks (For major events)
 Create a `daysleft` code block. It supports multiple parameters, but only `to` is strictly required.
@@ -75,8 +83,8 @@ Here are the parameters you can use inside a `daysleft` block:
 | Parameter                | Example Value               | Description                                                                                       |
 | :----------------------- | :-------------------------- | :------------------------------------------------------------------------------------------------ |
 | `text`                   | `My Birthday`               | A label displayed above the counter.                                                              |
-| `to`                     | `2026-10-15`                | **(Required)** The target date (YYYY-MM-DD format).                                               |
-| `from`                   | `{today}`                   | The starting date. Defaults to today's date.                                                      |
+| `to`                     | `2026-10-15`                | The target date (YYYY-MM-DD format).                                                              |
+| `from`                   | `2004-11-04`                | The starting date. Defaults to today's date.                                                      |
 | `language`               | `en`, `es`, `pl`...         | Forces a specific language for this counter.                                                      |
 | `dayCounterColor`        | `blue`, `#4CAF50`           | Color for future events.                                                                          |
 | `dayCounterColorPast`    | `gray`, `var(--text-faint)` | Color for events that have already passed.                                                        |
@@ -90,6 +98,8 @@ Here are the parameters you can use inside a `daysleft` block:
 | `todayTomorrow`          | `true` / `false`            | `true`: shows "Today/Tomorrow". `false`: shows "0/1 days".                                        |
 | `showFinalDate`          | `true` / `false`            | Displays the target date below the block counter.                                                 |
 | `finalDateFormat`        | `D MMMM YYYY`               | Formats the final date (Uses [Moment.js syntax](https://momentjs.com/docs/#/displaying/format/)). |
+
+⚠️ Note on Spotlight: Spotlight styling and alerts work ONLY for dynamic upcoming events. If you use the from: parameter (duration mode), Spotlight features are automatically disabled for that specific block.
 
 ### Example of local override:
 ````markdown
